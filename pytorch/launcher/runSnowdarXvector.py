@@ -85,7 +85,7 @@ logger = logging.getLogger('libs')
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s [%(pathname)s:%(lineno)s - "
+formatter = logging.Formatter("%(asctime)s [ %(pathname)s:%(lineno)s - "
                               "%(funcName)s - %(levelname)s ]\n#### %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -160,12 +160,13 @@ train_stage = max(-1, args.train_stage)
 ## Preprocess options
 force_clear=args.force_clear
 preprocess_nj = 20
+compress=False
 cmn = True # Traditional cmn process.
 
 chunk_size = 200
 limit_utts = 8
 
-sample_type="speaker_balance" # sequential | speaker_balance
+sample_type="sequential" # sequential | speaker_balance
 chunk_num=-1 # -1 means using scale, 0 means using max and >0 means itself.
 overlap=0.1
 scale=1.5 # Get max / num_spks * scale for every speaker.
@@ -197,9 +198,9 @@ loader_params = {
 # Difine model_params by model_blueprint w.r.t your model's __init__(model_params).
 model_params = {
     "extend":True, "SE":False, "se_ratio":4, "training":True, "extracted_embedding":"far",
-    "mixup":True, "mixup_alpha":1.0,
+    "mixup":False, "mixup_alpha":1.0,
     "specaugment":False,
-    "specaugment_params":{"frequency":0.2, "frame":0.2, "rows":2, "cols":2, "random_rows":True,"random_rows":True},
+    "specaugment_params":{"frequency":0.2, "frame":0.2, "rows":2, "cols":2, "random_rows":True, "random_rows":True},
 
     "aug_dropout":0., "hidden_dropout":0., 
     "dropout_params":{"type":"default", "start_p":0., "dim":2, "method":"uniform",
@@ -217,6 +218,7 @@ model_params = {
                       "affine_layers":1,
                       "hidden_size":64,
                       "context":[0],
+                      "stddev":True,
                       "temperature":False, 
                       "fixed":True,
                       "stddev":True
@@ -236,19 +238,19 @@ model_params = {
 }
 
 optimizer_params = {
-    "name":"adamW",
-    "learn_rate":0.001,
+    "name":"sgd",
+    "learn_rate":0.01,
     "beta1":0.9,
     "beta2":0.999,
     "beta3":0.999,
-    "weight_decay":3e-1,  # Should be large for decouped weight decay (adamW) and small for L2 regularization (sgd, adam).
+    "weight_decay":3e-4,  # Should be large for decouped weight decay (adamW) and small for L2 regularization (sgd, adam).
     "lookahead.k":5,
     "lookahead.alpha":0.,  # 0 means not using lookahead and if used, suggest to set it as 0.5.
     "gc":False # If true, use gradient centralization.
 }
 
 lr_scheduler_params = {
-    "name":"warmR", # warmR or reduceP
+    "name":"reduceP", # warmR or reduceP
     "warmR.lr_decay_step":0, # 0 means decay after every epoch and 1 means every iter. 
     "warmR.T_max":3,
     "warmR.T_mult":2,
@@ -256,15 +258,15 @@ lr_scheduler_params = {
     "warmR.eta_min":4e-8,
     "warmR.log_decay":False,
     "reduceP.metric":'valid_acc',
-    "reduceP.check_interval":1000, # 0 means check metric after every epoch and 1 means every iter. 
-    "reduceP.factor":0.1,  # scale of lr in every times.
-    "reduceP.patience":1, 
+    "reduceP.check_interval":0, # 0 means check metric after every epoch and 1 means every iter. 
+    "reduceP.factor":0.5,  # scale of lr in every times.
+    "reduceP.patience":2, 
     "reduceP.threshold":0.0001, 
     "reduceP.cooldown":0, 
-    "reduceP.min_lr":0
+    "reduceP.min_lr":1e-6
 }
 
-epochs = 21 # Total epochs to train. It is important.
+epochs = 100 # Total epochs to train. It is important.
 
 report_times_every_epoch = None
 report_interval_iters = 100 # About validation computation and loss reporting. If report_times_every_epoch is not None, 
@@ -279,7 +281,7 @@ traindata="data/mfcc_23_pitch/voxceleb1_train_aug"
 egs_dir="exp/egs/mfcc_23_pitch_voxceleb1_train_aug" + "_" + sample_type
 
 model_blueprint="subtools/pytorch/model/snowdar-xvector.py"
-model_dir="exp/extended_voxceleb1"
+model_dir="exp/extended_voxceleb1_spec_am_reduceP_sgd"
 ##--------------------------------------------------##
 ##
 ######################################################### START #########################################################
@@ -310,16 +312,16 @@ if lr_scheduler_params["name"] == "warmR" and model_params["use_step"]:
 if stage <= 2 and endstage >= 0 and utils.is_main_training():
     # Here only give limited options because it is not convenient.
     # Suggest to pre-execute this shell script to make it freedom and then continue to run this launcher.
-    kaldi_common.execute_command("sh subtools/pytorch/pipeline/preprocess_to_egs.sh "
+    kaldi_common.execute_command("bash subtools/pytorch/pipeline/preprocess_to_egs.sh "
                                  "--stage {stage} --endstage {endstage} --valid-split-type {valid_split_type} "
                                  "--nj {nj} --cmn {cmn} --limit-utts {limit_utts} --min-chunk {chunk_size} --overlap {overlap} "
                                  "--sample-type {sample_type} --chunk-num {chunk_num} --scale {scale} --force-clear {force_clear} "
-                                 "--valid-num-utts {valid_utts} --valid-chunk-num {valid_chunk_num_every_utt} "
+                                 "--valid-num-utts {valid_utts} --valid-chunk-num {valid_chunk_num_every_utt} --compress {compress} "
                                  "{traindata} {egs_dir}".format(stage=stage, endstage=endstage, valid_split_type=valid_split_type, 
                                  nj=preprocess_nj, cmn=str(cmn).lower(), limit_utts=limit_utts, chunk_size=chunk_size, overlap=overlap, 
                                  sample_type=sample_type, chunk_num=chunk_num, scale=scale, force_clear=str(force_clear).lower(), 
-                                 valid_utts=valid_utts, valid_chunk_num_every_utt=valid_chunk_num_every_utt, traindata=traindata, 
-                                 egs_dir=egs_dir))
+                                 valid_utts=valid_utts, valid_chunk_num_every_utt=valid_chunk_num_every_utt, compress=str(compress).lower(),
+                                 traindata=traindata, egs_dir=egs_dir))
 
 #### Train model
 if stage <= 3 <= endstage:
@@ -373,9 +375,9 @@ if stage <= 4 <= endstage and utils.is_main_training():
     data_root = "data" # It contains all dataset just like Kaldi recipe.
     prefix = "mfcc_23_pitch" # For to_extracted_data.
 
-    to_extracted_positions = ["far", "near"] # Define this w.r.t extracted_embedding param of model_blueprint.
+    to_extracted_positions = ["far"] # Define this w.r.t extracted_embedding param of model_blueprint.
     to_extracted_data = ["voxceleb1_train_aug", "voxceleb1_test"] # All dataset should be in data_root/prefix.
-    to_extracted_epochs = ["21"] # It is model's name, such as 10.params or final.params (suffix is w.r.t package).
+    to_extracted_epochs = [10,20,30,40,50,60,70,72] # It is model's name, such as 10.params or final.params (suffix is w.r.t package).
 
     nj = 10
     force = False
@@ -413,7 +415,7 @@ if stage <= 4 <= endstage and utils.is_main_training():
                     # Use a well-optimized shell script (with multi-processes) to extract xvectors.
                     # Another way: use subtools/splitDataByLength.sh and subtools/pytorch/pipeline/onestep/extract_embeddings.py 
                     # with python's threads to extract xvectors directly, but the shell script is more convenient.
-                    kaldi_common.execute_command("sh subtools/pytorch/pipeline/extract_xvectors_for_pytorch.sh "
+                    kaldi_common.execute_command("bash subtools/pytorch/pipeline/extract_xvectors_for_pytorch.sh "
                                                 "--model {model_file} --cmn {cmn} --nj {nj} --use-gpu {use_gpu} --gpu-id '{gpu_id}' "
                                                 " --force {force} --nnet-config config/{extract_config} "
                                                 "{model_dir} {datadir} {outdir}".format(model_file=model_file, cmn=str(cmn).lower(), nj=nj,

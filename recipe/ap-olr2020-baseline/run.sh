@@ -1,6 +1,10 @@
 #!/bin/bash
 
 # Copyright xmuspeech (Author: Snowdar, Zheng Li 2020-05-30)
+# Update by Zheng Li 2020-07-23
+# Update info: For open-set dialect identification task (task 2), a new script named computeCavg_unknown.py was provided to compute Cavg and it will be used in the final test procedure.
+#              As for task 1 and task 3, the computation of Cavg in computeCavg.py is not changed.
+#
 # Corresponding email: ap_olr@163.com
 # Please refer to https://speech.xmu.edu.cn/ or http://olr.cslt.org for more info
 
@@ -50,11 +54,11 @@ python3 run_pytorch_xvector.py --stage=0
 
 ## Kaldi x-vector model training
 # Training (preprocess -> get_egs -> training -> extract_xvectors)
-sh run_kaldi_xvector.sh
+bash run_kaldi_xvector.sh
 
 ## Kaldi i-vector model training
 # Training (preprocess -> get_egs -> training -> extract_ivectors)
-sh run_kaldi_ivector.sh
+bash run_kaldi_ivector.sh
 
 ### Back-end scoring: lda100 -> submean -> norm -> LR 
 
@@ -62,10 +66,10 @@ sh run_kaldi_ivector.sh
 # the system performance when participants repeat the baseline systems or prepare their own systems.
 # Task 1: Cross-channel LID; Task2 : dialect identification; Task3: no ref-development set provided
 for exp in exp/pytorch_xvector/far_epoch21 exp/pytorch_xvector/far_epoch21 exp/kaldi_xvector/embedding1 exp/kaldi_ivector;do
-  for task in 1 2;do
-    subtools/scoreSets.sh --eval false --vectordir $exp --prefix mfcc_20_5.0  --enrollset=task${task}_enroll --testset=task${task}_test \
-                          --lda true --clda 100 --submean true --score "lr" --metric "Cavg"
-  done
+  subtools/scoreSets.sh --eval false --vectordir $exp --prefix mfcc_20_5.0  --enrollset task1_enroll --testset task1_test \
+                        --lda true --clda 100 --submean true --score "lr" --metric "Cavg"
+  sh scoreSets_open_set.sh --eval false --vectordir $exp --prefix mfcc_20_5.0  --enrollset task2_enroll --testset task2_test \
+                        --lda true --clda 100 --submean true --score "lr" --metric "Cavg"
 done
 
 # You can compare your results on AP20-OLR-ref-dev with results.txt to check your systems.
@@ -74,7 +78,7 @@ done
 # Task 1: Cross-channel LID; Task2 : dialect identification; Task3: noisy LID
 for exp in exp/pytorch_xvector/far_epoch21 exp/pytorch_xvector/far_epoch21 exp/kaldi_xvector/embedding1 exp/kaldi_ivector;do
   for task in 1 2 3;do
-    subtools/scoreSets.sh --eval true --vectordir $exp --prefix mfcc_20_5.0  --enrollset=task${task}_enroll --testset=task${task}_test \
+    subtools/scoreSets.sh --eval true --vectordir $exp --prefix mfcc_20_5.0  --enrollset task${task}_enroll --testset task${task}_test \
                           --lda true --clda 100 --submean true --score "lr" --metric "Cavg"
     # Transfer the format of score file to requred format.
     subtools/score2table.sh $exp/task${task}_test/lr_task${task}_enroll_task${task}_test_lda100_submean_norm.score $exp/task${task}_test/lr_task${task}_enroll_task${task}_test_lda100_submean_norm.score.requred

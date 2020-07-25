@@ -28,11 +28,11 @@ class LRSchedulerWrapper():
             "warmR.lr_decay_step":1,
             "reduceP.metric":'valid_acc',
             "reduceP.check_interval":0, 
-            "reduceP.factor":0.1, 
+            "reduceP.factor":0.5, 
             "reduceP.patience":10, 
             "reduceP.threshold":0.0001, 
             "reduceP.cooldown":0, 
-            "reduceP.min_lr":0
+            "reduceP.min_lr":0.
         }
 
         used_params = utils.assign_params_dict(default_params, params, force_check=False, support_unknow=True)
@@ -69,7 +69,8 @@ class LRSchedulerWrapper():
     
     def is_reduce_point(self, training_point):
         if self.name == "reduceP":
-            return (self.check_interval > 0 and training_point[1]%self.check_interval == 0) or \
+            # It will check the point with a global num_iter value.
+            return (self.check_interval > 0 and (training_point[0] * training_point[2] + training_point[1] + 1)%self.check_interval == 0) or \
                    (self.check_interval <= 0 and training_point[1] + 1 == training_point[2])
         else:
             return False
@@ -77,6 +78,7 @@ class LRSchedulerWrapper():
     def step(self, training_point=None, valid_metric=None):
         if self.name == "warmR":
             if self.lr_decay_step > 0 and training_point[1]%self.lr_decay_step == 0:
+                # It will check the point at the start of every epoch (not a global decay-strategy).
                 self.lr_scheduler.step(training_point[0]+training_point[1]/training_point[2])
             elif self.lr_decay_step == 0:
                 self.lr_scheduler.step(training_point[0])
@@ -93,17 +95,17 @@ class LRSchedulerWrapper():
                     if not self.init:
                         device = utils.get_device_from_optimizer(self.lr_scheduler.optimizer)
                         # Create a must tentor to prepare to broadcast with torch.distributed.broadcast fuction.
-                        self.metric = torch.randn(2, device=device) 
+                        self.broadcast_metric = torch.randn(2, device=device) 
                         # New a group to broadcast the special metric tensor. It is important.
                         self.group = torch.distributed.new_group(ranks=list(range(torch.distributed.get_world_size())), 
                                                                  backend="nccl")
                         self.init = True
                     if utils.is_main_training():
                         # Gather the new value of metric.
-                        self.metric = torch.tensor([valid_metric[0], valid_metric[1]], device=self.metric.device)
+                        self.broadcast_metric = torch.tensor([valid_metric[0], valid_metric[1]], device=self.broadcast_metric.device)
                     # Broadcast
-                    torch.distributed.broadcast(self.metric, 0, group=self.group)
-                    metric = self.metric[0] if self.metric == "valid_loss" else self.metric[1]
+                    torch.distributed.broadcast(self.broadcast_metric, 0, group=self.group)
+                    metric = self.broadcast_metric[0] if self.metric == "valid_loss" else self.broadcast_metric[1]
                 else:
                     # Single-GPU case.
                     metric = valid_metric[0] if self.metric == "valid_loss" else valid_metric[1]

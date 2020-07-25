@@ -84,7 +84,7 @@ logger = logging.getLogger('libs')
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s [%(pathname)s:%(lineno)s - "
+formatter = logging.Formatter("%(asctime)s [ %(pathname)s:%(lineno)s - "
                               "%(funcName)s - %(levelname)s ]\n#### %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -159,12 +159,13 @@ train_stage = max(-1, args.train_stage)
 ## Preprocess options
 force_clear=args.force_clear
 preprocess_nj = 20
+compress=False
 cmn = True # Traditional cmn process.
 
 chunk_size = 200
 limit_utts = 8
 
-sample_type="speaker_balance" # sequential | speaker_balance
+sample_type="sequential" # sequential | speaker_balance
 chunk_num=-1 # -1 means using scale, 0 means using max and >0 means itself.
 overlap=0.1
 scale=1.5 # Get max / num_spks * scale for every speaker.
@@ -214,6 +215,7 @@ model_params = {
                       "affine_layers":1,
                       "hidden_size":64,
                       "context":[0],
+                      "stddev":True,
                       "temperature":False, 
                       "fixed":True
                       },
@@ -320,16 +322,16 @@ if lr_scheduler_params["name"] == "warmR" and model_params["use_step"]:
 if stage <= 2 and endstage >= 0 and utils.is_main_training():
     # Here only give limited options because it is not convenient.
     # Suggest to pre-execute this shell script to make it freedom and then continue to run this launcher.
-    kaldi_common.execute_command("sh subtools/pytorch/pipeline/preprocess_to_egs.sh "
+    kaldi_common.execute_command("bash subtools/pytorch/pipeline/preprocess_to_egs.sh "
                                  "--stage {stage} --endstage {endstage} --valid-split-type {valid_split_type} "
                                  "--nj {nj} --cmn {cmn} --limit-utts {limit_utts} --min-chunk {chunk_size} --overlap {overlap} "
                                  "--sample-type {sample_type} --chunk-num {chunk_num} --scale {scale} --force-clear {force_clear} "
-                                 "--valid-num-utts {valid_utts} --valid-chunk-num {valid_chunk_num_every_utt} "
+                                 "--valid-num-utts {valid_utts} --valid-chunk-num {valid_chunk_num_every_utt} --compress {compress} "
                                  "{traindata} {egs_dir}".format(stage=stage, endstage=endstage, valid_split_type=valid_split_type, 
                                  nj=preprocess_nj, cmn=str(cmn).lower(), limit_utts=limit_utts, chunk_size=chunk_size, overlap=overlap, 
                                  sample_type=sample_type, chunk_num=chunk_num, scale=scale, force_clear=str(force_clear).lower(), 
-                                 valid_utts=valid_utts, valid_chunk_num_every_utt=valid_chunk_num_every_utt, traindata=traindata, 
-                                 egs_dir=egs_dir))
+                                 valid_utts=valid_utts, valid_chunk_num_every_utt=valid_chunk_num_every_utt, compress=str(compress).lower(),
+                                 traindata=traindata, egs_dir=egs_dir))
 
 #### Train model
 if stage <= 3 <= endstage:
@@ -423,7 +425,7 @@ if stage <= 4 <= endstage and utils.is_main_training():
                     # Use a well-optimized shell script (with multi-processes) to extract xvectors.
                     # Another way: use subtools/splitDataByLength.sh and subtools/pytorch/pipeline/onestep/extract_embeddings.py 
                     # with python's threads to extract xvectors directly, but the shell script is more convenient.
-                    kaldi_common.execute_command("sh subtools/pytorch/pipeline/extract_xvectors_for_pytorch.sh "
+                    kaldi_common.execute_command("bash subtools/pytorch/pipeline/extract_xvectors_for_pytorch.sh "
                                                 "--model {model_file} --cmn {cmn} --nj {nj} --use-gpu {use_gpu} --gpu-id '{gpu_id}' "
                                                 " --force {force} --nnet-config config/{extract_config} "
                                                 "{model_dir} {datadir} {outdir}".format(model_file=model_file, cmn=str(cmn).lower(), nj=nj,
