@@ -6,8 +6,9 @@
 # This file is meant to be invoked by make_musan.sh.
 
 import os, sys, argparse
-sys.path.append("subtools/kaldi/steps/data/")
-sys.path.insert(0, 'subtools/kaldi/steps/')
+subtools_path = os.getenv('SUBTOOLS')
+sys.path.append("{}/kaldi/steps/data/".format(subtools_path))
+sys.path.insert(0, '{}/kaldi/steps/'.format(subtools_path))
 import libs.common as common_lib
 
 def get_args():

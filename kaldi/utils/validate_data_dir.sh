@@ -102,7 +102,7 @@ fi
 check_sorted_and_uniq $data/spk2utt
 
 ! cmp -s <(cat $data/utt2spk | awk '{print $1, $2;}') \
-     <(subtools/kaldi/utils/spk2utt_to_utt2spk.pl $data/spk2utt)  && \
+     <(${SUBTOOLS}/kaldi/utils/spk2utt_to_utt2spk.pl $data/spk2utt)  && \
    echo "$0: spk2utt and utt2spk do not seem to match" && exit 1;
 
 cat $data/utt2spk | awk '{print $1;}' > $tmpdir/utts
@@ -114,7 +114,7 @@ fi
 
 num_utts=`cat $tmpdir/utts | wc -l`
 if [ -f $data/text ]; then
-  subtools/kaldi/utils/validate_text.pl $data/text || exit 1;
+  ${SUBTOOLS}/kaldi/utils/validate_text.pl $data/text || exit 1;
   check_sorted_and_uniq $data/text
   text_len=`cat $data/text | wc -l`
   illegal_sym_list="<s> </s> #0"

@@ -15,8 +15,8 @@ skip_fix=false # skip the fix_data_dir.sh in the end
 
 echo "$0 $@"  # Print the command line for logging
 
-if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
-. parse_options.sh || exit 1;
+# if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
+. ${SUBTOOLS}/parse_options.sh || exit 1;
 
 if [ $# -lt 2 ]; then
   echo "Usage: combine_data.sh [--extra-files 'file1 file2'] <dest-data-dir> <src-data-dir1> <src-data-dir2> ..."
@@ -98,7 +98,7 @@ if $has_segments; then
   for in_dir in $*; do
     if [ ! -f $in_dir/segments ]; then
       echo "$0 [info]: will generate missing segments for $in_dir" 1>&2
-      subtools/kaldi/utils/data/get_segments_for_data.sh $in_dir
+      ${SUBTOOLS}/kaldi/utils/data/get_segments_for_data.sh $in_dir
     else
       cat $in_dir/segments
     fi
@@ -133,14 +133,14 @@ for file in utt2spk utt2lang utt2dur utt2num_frames reco2dur feats.scp text cmvn
   fi
 done
 
-subtools/kaldi/utils/utt2spk_to_spk2utt.pl <$dest/utt2spk >$dest/spk2utt
+${SUBTOOLS}/kaldi/utils/utt2spk_to_spk2utt.pl <$dest/utt2spk >$dest/spk2utt
 
 if [[ $dir_with_frame_shift ]]; then
   cp $dir_with_frame_shift/frame_shift $dest
 fi
 
 if ! $skip_fix ; then
-  subtools/kaldi/utils/fix_data_dir.sh $dest || exit 1;
+  ${SUBTOOLS}/kaldi/utils/fix_data_dir.sh $dest || exit 1;
 fi
 
 exit 0

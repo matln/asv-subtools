@@ -53,7 +53,7 @@ if [ $# -lt 1 ] || [ $# -gt 3 ]; then
    exit 1;
 fi
 
-if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
+# if [ -f {SUBTOOLS}/path.sh ]; then . ./{SUBTOOLS}/path.sh; fi
 
 data=$1
 if [ $# -ge 2 ]; then

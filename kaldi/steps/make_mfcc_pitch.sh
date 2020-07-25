@@ -21,8 +21,8 @@ write_utt2dur=true
 
 echo "$0 $@"  # Print the command line for logging.
 
-if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
-. parse_options.sh || exit 1;
+# if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
+. ${SUBTOOLS}/parse_options.sh || exit 1;
 
 if [ $# -lt 1 ] || [ $# -gt 3 ]; then
   cat >&2 <<EOF
@@ -40,7 +40,7 @@ Options:
   --write-utt2num-frames <true|false>  # If true, write utt2num_frames file.
   --write-utt2dur <true|false>         # If true, write utt2dur file.
 EOF
-   exit 1;
+  exit 1;
 fi
 
 data=$1
@@ -82,7 +82,7 @@ for f in $required; do
   fi
 done
 
-subtools/kaldi/utils/validate_data_dir.sh --no-text --no-feats $data || exit 1;
+${SUBTOOLS}/kaldi/utils/validate_data_dir.sh --no-text --no-feats $data || exit 1;
 
 if [ ! -z "$pitch_postprocess_config" ]; then
   postprocess_config_opt="--config=$pitch_postprocess_config";
@@ -90,6 +90,9 @@ else
   postprocess_config_opt=
 fi
 
+# VTLN 是一种说话人自适应技术。P76
+# spk2warp：说话人卷曲因子映射
+# utt2warp：句子卷曲因子映射
 if [ -f $data/spk2warp ]; then
   echo "$0 [info]: using VTLN warp factors from $data/spk2warp"
   vtln_opts="--vtln-map=ark:$data/spk2warp --utt2spk=ark:$data/utt2spk"
@@ -101,7 +104,7 @@ fi
 for n in $(seq $nj); do
   # the next command does nothing unless $mfcc_pitch_dir/storage/ exists, see
   # subtools/kaldi/utils/create_data_link.pl for more info.
-  subtools/kaldi/utils/create_data_link.pl $mfcc_pitch_dir/raw_mfcc_pitch_$name.$n.ark
+  ${SUBTOOLS}/kaldi/utils/create_data_link.pl $mfcc_pitch_dir/raw_mfcc_pitch_$name.$n.ark
 done
 
 if $write_utt2num_frames; then
@@ -123,7 +126,7 @@ if [ -f $data/segments ]; then
     split_segments="$split_segments $logdir/segments.$n"
   done
 
-  subtools/kaldi/utils/split_scp.pl $data/segments $split_segments || exit 1;
+  ${SUBTOOLS}/kaldi/utils/split_scp.pl $data/segments $split_segments || exit 1;
   rm $logdir/.error 2>/dev/null
 
   mfcc_feats="ark:extract-segments scp,p:$scp $logdir/segments.JOB ark:- | \
@@ -133,6 +136,8 @@ if [ -f $data/segments ]; then
     compute-kaldi-pitch-feats --verbose=2 --config=$pitch_config ark:- ark:- | \
     process-kaldi-pitch-feats $postprocess_config_opt ark:- ark:- |"
 
+  # paste-feats 可执行程序用于将多个特征文件拼接在一起，保存为一个组合特征文件。
+  # 例如，将40维频谱特征和3维基频特征拼接称43维声学特征
   $cmd JOB=1:$nj $logdir/make_mfcc_pitch_${name}.JOB.log \
     paste-feats --length-tolerance=$paste_length_tolerance \
       "$mfcc_feats" "$pitch_feats" ark:- \| \
@@ -147,12 +152,12 @@ else
     split_scps="$split_scps $logdir/wav_${name}.$n.scp"
   done
 
-  subtools/kaldi/utils/split_scp.pl $scp $split_scps || exit 1;
+  ${SUBTOOLS}/kaldi/utils/split_scp.pl $scp $split_scps || exit 1;
 
   mfcc_feats="ark:compute-mfcc-feats $vtln_opts $write_utt2dur_opt --verbose=2 \
     --config=$mfcc_config scp,p:$logdir/wav_${name}.JOB.scp ark:- |"
   pitch_feats="ark,s,cs:compute-kaldi-pitch-feats --verbose=2 \
-      --config=$pitch_config scp,p:$logdir/wav_${name}.JOB.scp ark:- | \
+    --config=$pitch_config scp,p:$logdir/wav_${name}.JOB.scp ark:- | \
     process-kaldi-pitch-feats $postprocess_config_opt ark:- ark:- |"
 
   $cmd JOB=1:$nj $logdir/make_mfcc_pitch_${name}.JOB.log \
@@ -196,7 +201,7 @@ mkdir -p $data/conf &&
   cp $pitch_config $data/conf/pitch.conf || exit 1
 
 rm $logdir/wav_${name}.*.scp  $logdir/segments.* \
-   $logdir/utt2num_frames.* $logdir/utt2dur.* 2>/dev/null
+  $logdir/utt2num_frames.* $logdir/utt2dur.* 2>/dev/null
 
 nf=$(wc -l < $data/feats.scp)
 nu=$(wc -l < $data/utt2spk)

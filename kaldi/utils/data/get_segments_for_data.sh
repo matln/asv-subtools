@@ -8,7 +8,7 @@
 # wav.scp is indexed by utterance), and uses durations from 'utt2dur', 
 # created if necessary by get_utt2dur.sh.
 
-. ./subtools/path.sh
+# . ./subtools/path.sh
 
 if [ $# != 1 ]; then
   echo "Usage: $0 [options] <datadir>"
@@ -20,7 +20,7 @@ fi
 data=$1
 
 if [ ! -s $data/utt2dur ]; then
-  subtools/kaldi/utils/data/get_utt2dur.sh $data 1>&2 || exit 1;
+  ${SUBTOOLS}/kaldi/utils/data/get_utt2dur.sh $data 1>&2 || exit 1;
 fi
 
 # <utt-id> <utt-id> 0 <utt-dur>

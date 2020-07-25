@@ -108,11 +108,11 @@ fi
 which lockfile >&/dev/null && lockfile -l 60 $data/.split_lock
 trap 'rm -f $data/.split_lock' EXIT HUP INT PIPE TERM
 
-subtools/kaldi/utils/split_scp.pl $utt2spk_opt $data/utt2spk $utt2spks || exit 1
+${SUBTOOLS}/kaldi/utils/split_scp.pl $utt2spk_opt $data/utt2spk $utt2spks || exit 1
 
 for n in `seq $numsplit`; do
   dsn=$data/split${numsplit}${utt}/$n
-  subtools/kaldi/utils/utt2spk_to_spk2utt.pl $dsn/utt2spk > $dsn/spk2utt || exit 1;
+  ${SUBTOOLS}/kaldi/utils/utt2spk_to_spk2utt.pl $dsn/utt2spk > $dsn/spk2utt || exit 1;
 done
 
 maybe_wav_scp=
@@ -124,7 +124,7 @@ fi
 # split some things that are indexed by utterance.
 for f in feats.scp text vad.scp utt2lang $maybe_wav_scp utt2dur utt2num_frames; do
   if [ -f $data/$f ]; then
-    subtools/kaldi/utils/filter_scps.pl JOB=1:$numsplit \
+    ${SUBTOOLS}/kaldi/utils/filter_scps.pl JOB=1:$numsplit \
       $data/split${numsplit}${utt}/JOB/utt2spk $data/$f $data/split${numsplit}${utt}/JOB/$f || exit 1;
   fi
 done
@@ -132,25 +132,25 @@ done
 # split some things that are indexed by speaker
 for f in spk2gender spk2warp cmvn.scp; do
   if [ -f $data/$f ]; then
-    subtools/kaldi/utils/filter_scps.pl $warning_opt JOB=1:$numsplit \
+    ${SUBTOOLS}/kaldi/utils/filter_scps.pl $warning_opt JOB=1:$numsplit \
       $data/split${numsplit}${utt}/JOB/spk2utt $data/$f $data/split${numsplit}${utt}/JOB/$f || exit 1;
   fi
 done
 
 if [ -f $data/segments ]; then
-  subtools/kaldi/utils/filter_scps.pl JOB=1:$numsplit \
+  ${SUBTOOLS}/kaldi/utils/filter_scps.pl JOB=1:$numsplit \
      $data/split${numsplit}${utt}/JOB/utt2spk $data/segments $data/split${numsplit}${utt}/JOB/segments || exit 1
   for n in `seq $numsplit`; do
     dsn=$data/split${numsplit}${utt}/$n
     awk '{print $2;}' $dsn/segments | sort | uniq > $dsn/tmp.reco # recording-ids.
   done
   if [ -f $data/reco2file_and_channel ]; then
-    subtools/kaldi/utils/filter_scps.pl $warning_opt JOB=1:$numsplit \
+    ${SUBTOOLS}/kaldi/utils/filter_scps.pl $warning_opt JOB=1:$numsplit \
       $data/split${numsplit}${utt}/JOB/tmp.reco $data/reco2file_and_channel \
       $data/split${numsplit}${utt}/JOB/reco2file_and_channel || exit 1
   fi
   if [ -f $data/wav.scp ]; then
-    subtools/kaldi/utils/filter_scps.pl $warning_opt JOB=1:$numsplit \
+    ${SUBTOOLS}/kaldi/utils/filter_scps.pl $warning_opt JOB=1:$numsplit \
       $data/split${numsplit}${utt}/JOB/tmp.reco $data/wav.scp \
       $data/split${numsplit}${utt}/JOB/wav.scp || exit 1
   fi

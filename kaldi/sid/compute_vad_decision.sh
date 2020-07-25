@@ -15,8 +15,8 @@ vad_config=conf/vad.conf
 
 echo "$0 $@"  # Print the command line for logging
 
-if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
-. parse_options.sh || exit 1;
+# if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
+. ${SUBTOOLS}/parse_options.sh || exit 1;
 
 if [ $# != 3 ]; then
    echo "Usage: $0 [options] <data-dir> <log-dir> <path-to-vad-dir>";
@@ -38,26 +38,26 @@ vaddir=`perl -e '($dir,$pwd)= @ARGV; if($dir!~m:^/:) { $dir = "$pwd/$dir"; } pri
 # use "name" as part of name of the archive.
 name=`basename $data`
 
-mkdir -p $vaddir || exit 1;
-mkdir -p $logdir || exit 1;
+mkdir -p $vaddir || exit 1
+mkdir -p $logdir || exit 1
 
 
 for f in $data/feats.scp "$vad_config"; do
   if [ ! -f $f ]; then
     echo "compute_vad_decision.sh: no such file $f"
-    exit 1;
+    exit 1
   fi
 done
 
-subtools/kaldi/utils/split_data.sh --per-utt $data $nj || exit 1;
-sdata=$data/split${nj}utt;
+${SUBTOOLS}/kaldi/utils/split_data.sh --per-utt $data $nj || exit 1
+sdata=$data/split${nj}utt
 #sdata=$data
 # $cmd JOB=1:$nj $logdir/vad_${name}.JOB.log \
   # compute-vad --config=$vad_config scp:$sdata/feats.scp ark,scp:$vaddir/vad_${name}.JOB.ark,$vaddir/vad_${name}.JOB.scp \
-  # || exit 1;
+  # || exit 1
 $cmd JOB=1:$nj $logdir/vad_${name}.JOB.log \
  compute-vad --config=$vad_config scp:$sdata/JOB/feats.scp ark,scp:$vaddir/vad_${name}.JOB.ark,$vaddir/vad_${name}.JOB.scp \
- || exit 1;
+ || exit 1
 
 for ((n=1; n<=nj; n++)); do
   cat $vaddir/vad_${name}.$n.scp || exit 1;
@@ -70,6 +70,5 @@ if [ $nc -ne $nu ]; then
   echo "**validate_data_dir.sh will fail; you might want to use fix_data_dir.sh"
   [ $nc -eq 0 ] && exit 1;
 fi
-
 
 echo "Created VAD output for $name"

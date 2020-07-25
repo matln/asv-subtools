@@ -7,7 +7,8 @@
 
 import argparse, shlex, glob, math, os, random, sys, warnings, copy, imp, ast
 
-data_lib = imp.load_source('dml', 'subtools/kaldi/steps/data/data_dir_manipulation_lib.py')
+subtools_path = os.getenv('SUBTOOLS')
+data_lib = imp.load_source('dml', '{}/kaldi/steps/data/data_dir_manipulation_lib.py'.format(subtools_path))
 
 def get_args():
     # we add required arguments as named arguments for readability
@@ -419,7 +420,7 @@ def create_reverberated_copy(input_dir,
     wav_scp = parse_file_to_dict(input_dir + "/wav.scp", value_processor = lambda x: " ".join(x))
     if not os.path.isfile(input_dir + "/reco2dur"):
         print("Getting the duration of the recordings...");
-        data_lib.RunKaldiCommand("subtools/kaldi/utils/data/get_reco2dur.sh {}".format(input_dir))
+        data_lib.RunKaldiCommand("{}/kaldi/utils/data/get_reco2dur.sh {}".format(subtools_path, input_dir))
     durations = parse_file_to_dict(input_dir + "/reco2dur", value_processor = lambda x: float(x[0]))
     foreground_snr_array = [float(x) for x in foreground_snr_string.split(':')]
     background_snr_array = [float(x) for x in background_snr_string.split(':')]
@@ -430,8 +431,8 @@ def create_reverberated_copy(input_dir,
                pointsource_noise_addition_probability, max_noises_per_minute)
 
     add_prefix_to_fields(input_dir + "/utt2spk", output_dir + "/utt2spk", num_replicas, include_original, prefix, field = [0,1])
-    data_lib.RunKaldiCommand("subtools/kaldi/utils/utt2spk_to_spk2utt.pl <{output_dir}/utt2spk >{output_dir}/spk2utt"
-                    .format(output_dir = output_dir))
+    data_lib.RunKaldiCommand("{subtools}/kaldi/utils/utt2spk_to_spk2utt.pl <{output_dir}/utt2spk >{output_dir}/spk2utt"
+                    .format(subtools = subtools_path, output_dir = output_dir))
 
     if os.path.isfile(input_dir + "/utt2uniq"):
         add_prefix_to_fields(input_dir + "/utt2uniq", output_dir + "/utt2uniq", num_replicas, include_original, prefix, field =[0])
@@ -446,8 +447,8 @@ def create_reverberated_copy(input_dir,
     if os.path.isfile(input_dir + "/reco2file_and_channel"):
         add_prefix_to_fields(input_dir + "/reco2file_and_channel", output_dir + "/reco2file_and_channel", num_replicas, include_original, prefix, field = [0,1])
 
-    data_lib.RunKaldiCommand("subtools/kaldi/utils/validate_data_dir.sh --no-feats --no-text {output_dir}"
-                    .format(output_dir = output_dir))
+    data_lib.RunKaldiCommand("{subtools}/kaldi/utils/validate_data_dir.sh --no-feats --no-text {output_dir}"
+                    .format(subtools = subtools_path, output_dir = output_dir))
 
 
 def smooth_probability_distribution(set_list, smoothing_weight=0.0, target_sum=1.0):
@@ -466,7 +467,7 @@ def smooth_probability_distribution(set_list, smoothing_weight=0.0, target_sum=1
       uniform_probability = 0
       if num_unspecified > 0 and accumulated_prob < 1:
           uniform_probability = (1 - accumulated_prob) / float(num_unspecified)
-      elif num_unspecified > 0 and accumulate_prob >= 1:
+      elif num_unspecified > 0 and accumulated_prob >= 1:
           warnings.warn("The sum of probabilities specified by user is larger than or equal to 1. "
                         "The items without probabilities specified will be given zero to their probabilities.")
 
@@ -474,7 +475,8 @@ def smooth_probability_distribution(set_list, smoothing_weight=0.0, target_sum=1
           if item.probability is None:
               item.probability = uniform_probability
           else:
-              # smooth the probability
+              # smooth the probability, 一次指数平滑
+              # item.probability = item.probability - smoothing_weight * (item.probability - uniform_probability)
               item.probability = (1 - smoothing_weight) * item.probability + smoothing_weight * uniform_probability
 
       # Normalize the probability
@@ -670,8 +672,8 @@ def main():
                            max_noises_per_minute = args.max_noises_per_minute)
 
 
-    data_lib.RunKaldiCommand("subtools/kaldi/utils/validate_data_dir.sh --no-feats --no-text {output_dir}"
-                    .format(output_dir = args.output_dir))
+    data_lib.RunKaldiCommand("{subtools}/kaldi/utils/validate_data_dir.sh --no-feats --no-text {output_dir}"
+                    .format(subtools = subtools_path, output_dir = args.output_dir))
 
 if __name__ == "__main__":
     main()

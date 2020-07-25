@@ -3,13 +3,14 @@
 # Copyright xmuspeech (Author:Snowdar 2018-7-25)
 
 pitch=false
-pitch_config=subtools/conf/pitch.conf
+pitch_config=${SUBTOOLS}/conf/pitch.conf
 cmvn=false
 use_gpu=false
-nj=20 #num-jobs
-exp=exp/features
+nj=16 #num-jobs
+outdir=features
 
-. subtools/parse_options.sh
+
+. ${SUBTOOLS}/parse_options.sh
 
 if [[ $# != 3 ]];then
 echo "[exit] Num of parameters is not equal to 3"
@@ -29,8 +30,8 @@ cuda=
 
 pitch_string=
 if [ $pitch == "true" ];then
-suffix=pitch
-pitch_string="--pitch-config $pitch_config"
+  suffix=pitch
+  pitch_string="--pitch-config $pitch_config"
 fi
 
 case $feat_type in 
@@ -41,12 +42,22 @@ case $feat_type in
 	*) echo "[exit] Invalid base feature type $feat_type ,just fbank/mfcc/plp" && exit 1;;
 esac
 
-name=`echo "$data" | sed 's/\// /g' | awk '{for(i=1;i<=NF-1;i++){printf $i"_";}printf $NF}'`
-subtools/kaldi/steps/make_${feat_type}${suffix:+_$suffix}${cuda:+_$cuda}.sh $pitch_string --${feat_type}-config $config --nj $nj --cmd "run.pl" $data $exp/${feat_type}/$name/log $exp/${feat_type}/$name || exit 1
+name=`echo "$data" | sed 's/\// /g' | awk '{for(i=1;i<=NF-1;i++){printf $i"-";}printf $NF}'`
+${SUBTOOLS}/kaldi/steps/make_${feat_type}${suffix:+_$suffix}${cuda:+_$cuda}.sh \
+  $pitch_string \
+  --${feat_type}-config $config \
+  --nj $nj \
+  --cmd "run.pl" \
+  $data \
+  $outdir/${feat_type}/$name/log \
+  $outdir/${feat_type}/$name || exit 1
+# features/mfcc/data-mfcc_23_pitch-voxceleb1o2_train_aug
+
+${SUBTOOLS}/kaldi/utils/fix_data_dir.sh $data
 
 echo "Make features done."
 
-if [ $cmvn == "true" ];then
-subtools/kaldi/steps/compute_cmvn_stats.sh $data $exp/cmvn/log $exp/cmvn || exit 1
-echo "Compute cmvn stats done."
+if [ $cmvn == "true" ]; then
+  ${SUBTOOLS}/kaldi/steps/compute_cmvn_stats.sh $data $outdir/cmvn/log $outdir/cmvn || exit 1
+  echo "Compute cmvn stats done."
 fi

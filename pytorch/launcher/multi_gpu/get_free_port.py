@@ -4,8 +4,10 @@
 # Copyright xmuspeech (Author: Snowdar 2020-04-30)
 
 import sys
+import os
 
-sys.path.insert(0, 'subtools/pytorch')
+subtools = os.getenv('SUBTOOLS')
+sys.path.insert(0, '{}/pytorch'.format(subtools))
 
 import libs.support.utils as utils
 

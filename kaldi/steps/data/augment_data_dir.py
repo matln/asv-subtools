@@ -10,13 +10,14 @@
 # additive noise.
 from __future__ import print_function
 import sys, random, argparse, os, imp
-sys.path.append("subtools/kaldi/steps/data/")
-sys.path.insert(0, 'subtools/kaldi/steps/')
+subtools_path = os.getenv('SUBTOOLS')
+sys.path.append("{}/kaldi/steps/data/".format(subtools_path))
+sys.path.insert(0, '{}/kaldi/steps/'.format(subtools_path))
 
 from reverberate_data_dir import parse_file_to_dict
 from reverberate_data_dir import write_dict_to_file
 import libs.common as common_lib
-data_lib = imp.load_source('dml', 'subtools/kaldi/steps/data/data_dir_manipulation_lib.py')
+data_lib = imp.load_source('dml', '{}/kaldi/steps/data/data_dir_manipulation_lib.py'.format(subtools_path))
 
 def get_args():
     parser = argparse.ArgumentParser(description="Augment the data directory with additive noises. "
@@ -114,9 +115,16 @@ def augment_wav(utt, wav, dur, fg_snr_opts, bg_snr_opts, fg_noise_utts, \
 
     # Now handle the background noises
     if len(bg_noise_utts) > 0:
+        # type of the num_opts is list
         num = random.choice(num_opts)
         for i in range(0, num):
             noise_utt = random.choice(bg_noise_utts)
+            # repeat bg_noise to the duration specified
+            # --duration: If nonzero, it specified the duration (secs) of the output "
+            #    "signal. If the duration t is less than the length of the "
+            #    "input signal, the first t secs of the signal is trimmed, "
+            #    "otherwise, the signal will be repeated to "
+            #    "fulfill the duration specified.
             noise = "wav-reverberate --duration=" \
             + dur_str + " \"" + noise_wavs[noise_utt] + "\" - |"
             snr = random.choice(bg_snr_opts)
@@ -236,8 +244,10 @@ def main():
 
     # Augment each line in the wav file
     for line in wav_scp_file:
+        # rstrip: 删除字符串末尾的指定字符（默认为空格）
         toks = line.rstrip().split(" ")
         utt = toks[0]
+        # 难道还有多个wav吗？
         wav = " ".join(toks[1:])
         dur = reco2dur[utt]
         new_wav = augment_wav(utt, wav, dur, fg_snrs, bg_snrs, fg_noise_utts,
@@ -289,10 +299,11 @@ def main():
         create_augmented_utt2uniq(input_dir, output_dir,
                         args.utt_modifier_type, args.utt_modifier)
 
-    data_lib.RunKaldiCommand("subtools/kaldi/utils/utt2spk_to_spk2utt.pl <{output_dir}/utt2spk >{output_dir}/spk2utt"
-                    .format(output_dir = output_dir))
+    data_lib.RunKaldiCommand("{subtools}/kaldi/utils/utt2spk_to_spk2utt.pl <{output_dir}/utt2spk >{output_dir}/spk2utt"
+                    .format(subtools = subtools_path, output_dir = output_dir))
 
-    data_lib.RunKaldiCommand("subtools/kaldi/utils/fix_data_dir.sh {output_dir}".format(output_dir = output_dir))
+    data_lib.RunKaldiCommand("{subtools}/kaldi/utils/fix_data_dir.sh {output_dir}"
+                             .format(subtools = subtools_path, output_dir = output_dir))
 
 if __name__ == "__main__":
     main()

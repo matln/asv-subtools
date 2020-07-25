@@ -22,8 +22,8 @@ frame_shift=0.01
 cmd=run.pl
 nj=4
 
-. subtools/kaldi/utils/parse_options.sh
-. ./subtools/path.sh
+. ${SUBTOOLS}/kaldi/utils/parse_options.sh
+# . ./subtools/path.sh
 
 if [ $# != 1 ]; then
   echo "Usage: $0 [options] <datadir>"
@@ -105,12 +105,12 @@ elif [ -f $data/wav.scp ]; then
     subdirs=$(for n in `seq $nj`; do echo $temp_data_dir/$n; done)
 
     if ! mkdir -p $subdirs >&/dev/null; then
-	for n in `seq $nj`; do
-	    mkdir -p $temp_data_dir/$n
-	done
+      for n in `seq $nj`; do
+          mkdir -p $temp_data_dir/$n
+      done
     fi
 
-    subtools/kaldi/utils/split_scp.pl $data/wav.scp $wavscps
+    ${SUBTOOLS}/kaldi/utils/split_scp.pl $data/wav.scp $wavscps
 
 
     $cmd JOB=1:$nj $data/log/get_reco_durations.JOB.log \

@@ -24,8 +24,8 @@ stage=0
 
 echo "$0 $@"  # Print the command line for logging
 
-if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
-. parse_options.sh || exit 1;
+# if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
+. ${SUBTOOLS}/parse_options.sh || exit 1;
 
 if [ $# -ne 2 ]; then
     echo USAGE: $0 input_dir output_dir
@@ -40,32 +40,32 @@ fi
 in_dir=$1
 data_dir=$2
 
-mkdir -p local/musan.tmp
-
 # The below script will create the musan corpus
-subtools/kaldi/steps/data/make_musan.py --use-vocals ${use_vocals} \
-                        --sampling-rate ${sampling_rate} \
-                        ${in_dir} ${data_dir}/musan || exit 1;
+${SUBTOOLS}/kaldi/steps/data/make_musan.py --use-vocals ${use_vocals} \
+  --sampling-rate ${sampling_rate} \
+  ${in_dir} ${data_dir}/musan || exit 1;
 
-subtools/kaldi/utils/fix_data_dir.sh ${data_dir}/musan
+${SUBTOOLS}/kaldi/utils/fix_data_dir.sh ${data_dir}/musan
 
-grep "music" ${data_dir}/musan/utt2spk > local/musan.tmp/utt2spk_music
-grep "speech" ${data_dir}/musan/utt2spk > local/musan.tmp/utt2spk_speech
-grep "noise" ${data_dir}/musan/utt2spk > local/musan.tmp/utt2spk_noise
+mkdir -p ${data_dir}/musan.tmp
 
-subtools/kaldi/utils/subset_data_dir.sh --utt-list local/musan.tmp/utt2spk_music \
+grep "music" ${data_dir}/musan/utt2spk > ${data_dir}/musan.tmp/utt2spk_music
+grep "speech" ${data_dir}/musan/utt2spk > ${data_dir}/musan.tmp/utt2spk_speech
+grep "noise" ${data_dir}/musan/utt2spk > ${data_dir}/musan.tmp/utt2spk_noise
+
+${SUBTOOLS}/kaldi/utils/subset_data_dir.sh --utt-list ${data_dir}/musan.tmp/utt2spk_music \
         ${data_dir}/musan ${data_dir}/musan_music
-subtools/kaldi/utils/subset_data_dir.sh --utt-list local/musan.tmp/utt2spk_speech \
+${SUBTOOLS}/kaldi/utils/subset_data_dir.sh --utt-list ${data_dir}/musan.tmp/utt2spk_speech \
         ${data_dir}/musan ${data_dir}/musan_speech
-subtools/kaldi/utils/subset_data_dir.sh --utt-list local/musan.tmp/utt2spk_noise \
+${SUBTOOLS}/kaldi/utils/subset_data_dir.sh --utt-list ${data_dir}/musan.tmp/utt2spk_noise \
         ${data_dir}/musan ${data_dir}/musan_noise
 
-subtools/kaldi/utils/fix_data_dir.sh ${data_dir}/musan_music
-subtools/kaldi/utils/fix_data_dir.sh ${data_dir}/musan_speech
-subtools/kaldi/utils/fix_data_dir.sh ${data_dir}/musan_noise
+${SUBTOOLS}/kaldi/utils/fix_data_dir.sh ${data_dir}/musan_music
+${SUBTOOLS}/kaldi/utils/fix_data_dir.sh ${data_dir}/musan_speech
+${SUBTOOLS}/kaldi/utils/fix_data_dir.sh ${data_dir}/musan_noise
 
-rm -rf local/musan.tmp
+rm -rf ${data_dir}/musan.tmp
 
 for name in speech noise music; do
-    subtools/kaldi/utils/data/get_reco2dur.sh ${data_dir}/musan_${name}
+    ${SUBTOOLS}/kaldi/utils/data/get_reco2dur.sh ${data_dir}/musan_${name}
 done
