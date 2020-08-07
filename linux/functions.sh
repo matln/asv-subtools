@@ -1,4 +1,4 @@
-#!/bin/bash  
+#!/bin/bash  get_utt2num_frames_from_vad.shget_utt2num_frames_from_vad.sh
 
 # Copyright xmuspeech (Author: Snowdar 2019-10-17)
 
@@ -44,12 +44,13 @@ function do_lines_task_parallel(){
   done
   ${SUBTOOLS}/kaldi/utils/split_scp.pl $input_file $split_scps || exit 1
 
-
   # Execute function
   trap "${SUBTOOLS}/linux/kill_pid_tree.sh --show true $$ && echo -e '\nAll killed'" INT
   pids=""
   for i in $(seq $nj); do
-    $this_function $temp_dir/$name.$i.input $temp_dir/$output_name.$i.output > $temp_dir/$i.log 2>&1 || exit 1 & 
+    # $i is input to this_function by $3
+    # which funtion need three parameters: createVisualVad.sh (create_vad_label())
+    $this_function $temp_dir/$name.$i.input $temp_dir/$output_name.$i.output $i > $temp_dir/$i.log 2>&1 || exit 1 & 
     pids="$pids $!"
   done
   trap "${SUBTOOLS}/linux/kill_pid_tree.sh --show true $pids && echo -e '\nAll killed'" INT
