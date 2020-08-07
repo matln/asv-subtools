@@ -1,5 +1,3 @@
-# -*- coding:utf-8 -*-
-
 # Copyright xmuspeech (Author: Snowdar 2020-02-05)
 
 import sys
@@ -7,6 +5,7 @@ import os
 import torch
 import torch.nn.functional as F
 
+# subtools = '/data/lijianchen/workspace/sre/subtools'
 subtools = os.getenv('SUBTOOLS')
 sys.path.insert(0, '{}/pytorch'.format(subtools))
 
@@ -23,24 +22,16 @@ class Xvector(TopVirtualNnet):
         self.extracted_embedding = extracted_embedding
 
         # Nnet
-        self.aug_dropout = torch.nn.Dropout2d(
-            p=aug_dropout) if aug_dropout > 0 else None
+        self.aug_dropout = torch.nn.Dropout2d(p=aug_dropout) if aug_dropout > 0 else None
 
-        self.tdnn1 = ReluBatchNormTdnnLayer(
-            inputs_dim, 512, [-2, -1, 0, 1, 2], nonlinearity=nonlinearity)
-        self.tdnn2 = ReluBatchNormTdnnLayer(
-            512, 512, [-2, 0, 2], nonlinearity=nonlinearity)
-        self.tdnn3 = ReluBatchNormTdnnLayer(
-            512, 512, [-3, 0, 3], nonlinearity=nonlinearity)
-        self.tdnn4 = ReluBatchNormTdnnLayer(
-            512, 512, nonlinearity=nonlinearity)
-        self.tdnn5 = ReluBatchNormTdnnLayer(
-            512, 1500, nonlinearity=nonlinearity)
+        self.tdnn1 = ReluBatchNormTdnnLayer(inputs_dim, 512, [-2, -1, 0, 1, 2], nonlinearity=nonlinearity)
+        self.tdnn2 = ReluBatchNormTdnnLayer(512, 512, [-2, 0, 2], nonlinearity=nonlinearity)
+        self.tdnn3 = ReluBatchNormTdnnLayer(512, 512, [-3, 0, 3], nonlinearity=nonlinearity)
+        self.tdnn4 = ReluBatchNormTdnnLayer(512, 512, nonlinearity=nonlinearity)
+        self.tdnn5 = ReluBatchNormTdnnLayer(512, 1500, nonlinearity=nonlinearity)
         self.stats = StatisticsPooling(1500, stddev=True)
-        self.tdnn6 = ReluBatchNormTdnnLayer(
-            self.stats.get_output_dim(), 512, nonlinearity=nonlinearity)
-        self.tdnn7 = ReluBatchNormTdnnLayer(
-            512, 512, nonlinearity=nonlinearity)
+        self.tdnn6 = ReluBatchNormTdnnLayer(self.stats.get_output_dim(), 512, nonlinearity=nonlinearity)
+        self.tdnn7 = ReluBatchNormTdnnLayer(512, 512, nonlinearity=nonlinearity)
 
         # Do not need when extracting embedding.
         if training:

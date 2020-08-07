@@ -2,7 +2,8 @@
 
 # Copyright xmuspeech (Author: Snowdar 2020-01-05, JFZhou 2020-01-08)
 
-import os, sys
+import os
+import sys
 import logging
 import numpy as np
 import pandas as pd
@@ -16,7 +17,7 @@ logger.addHandler(logging.NullHandler())
 
 
 class ChunkSamples():
-    def __init__(self, dataset:KaldiDataset, chunk_size:int, chunk_type='speaker_balance', chunk_num_selection=0, 
+    def __init__(self, dataset: KaldiDataset, chunk_size: int, chunk_type='speaker_balance', chunk_num_selection=0,
                  scale=1.5, overlap=0.1, drop_last=False, seed=1024):
         '''
         Parameters:
@@ -34,7 +35,7 @@ class ChunkSamples():
         self.overlap = overlap
         self.drop_last = drop_last
 
-        assert 0<= self.overlap < 1
+        assert 0 <= self.overlap < 1
 
         np.random.seed(seed)
 
@@ -49,23 +50,29 @@ class ChunkSamples():
         if self.chunk_type == 'speaker_balance':
             spk2chunks = {}
             total_chunks = 0
+            # max number of chunks for all speakers
             max_chunk_num = 0
+            # chunk num of every utterance
             chunk_counter = {}
             for key in self.dataset.spk2utt.keys():
                 utt_selected = self.dataset.spk2utt[key]
+                # chunk num of every speaker
                 spk_chunk_num = 0
                 for utt in utt_selected:
                     ark_path = self.dataset.feats_scp[utt]
                     num_frames = self.dataset.utt2num_frames[utt]
 
                     if num_frames < self.chunk_size:
-                        logger.warn('The num frames {0} of {1} is less than chunk size {2}, so skip it.'.format(utt, num_frames, self.chunk_size))
+                        logger.warn('The num frames {0} of {1} is less than chunk size {2}, so '
+                                    'skip it.'.format(utt, num_frames, self.chunk_size))
                     else:
                         chunk_counter[utt] = 0
                         offset = 0
                         overlap_size = int(self.overlap * self.chunk_size)
                         while offset + self.chunk_size <= num_frames:
-                            chunk = "{0} {1} {2} {3} {4}".format(utt+'-'+str(chunk_counter[utt]),ark_path,offset,offset+self.chunk_size-1,self.dataset.utt2spk_int[utt])
+                            chunk = "{0} {1} {2} {3} {4}".format(
+                                utt + '-' + str(chunk_counter[utt]), ark_path, offset,
+                                offset + self.chunk_size - 1, self.dataset.utt2spk_int[utt])
                             offset += self.chunk_size - overlap_size
 
                             if key in spk2chunks.keys():
@@ -78,7 +85,10 @@ class ChunkSamples():
                             spk_chunk_num += 1
 
                         if not self.drop_last and offset + overlap_size < num_frames:
-                            chunk = "{0} {1} {2} {3} {4}".format(utt+'-'+str(chunk_counter[utt]),ark_path,num_frames-self.chunk_size,num_frames-1,self.dataset.utt2spk_int[utt])
+                            chunk = "{0} {1} {2} {3} {4}".format(
+                                utt + '-' + str(chunk_counter[utt]), ark_path,
+                                num_frames - self.chunk_size, num_frames - 1,
+                                self.dataset.utt2spk_int[utt])
                             total_chunks += 1
                             spk_chunk_num += 1
                             chunk_counter[utt] += 1
@@ -88,24 +98,31 @@ class ChunkSamples():
 
             for key in spk2chunks.keys():
                 chunk_selected = spk2chunks[key]
-                if self.chunk_num_selection==0:
+                if self.chunk_num_selection == 0:
                     num_chunks_selected = max_chunk_num
-                elif self.chunk_num_selection==-1:
-                    num_chunks_selected = int(total_chunks//len(self.dataset.spk2utt)*self.scale)
+                elif self.chunk_num_selection == -1:
+                    num_chunks_selected = int(total_chunks // len(self.dataset.spk2utt) * self.scale)
                 else:
                     num_chunks_selected = self.chunk_num_selection
 
                 num_chunks = len(chunk_selected)
                 if num_chunks < num_chunks_selected:
-                    valid_utts = [ utt for utt in self.dataset.spk2utt[key] if self.dataset.utt2num_frames[utt] >= self.chunk_size ]
-                    utts = np.random.choice(valid_utts,num_chunks_selected-num_chunks,replace=True)
+                    # valid is not validation
+                    # Make up the insufficient chunks
+                    valid_utts = [utt for utt in self.dataset.spk2utt[key]
+                                  if self.dataset.utt2num_frames[utt] >= self.chunk_size]
+                    utts = np.random.choice(valid_utts, num_chunks_selected - num_chunks, replace=True)
                     for utt in utts:
-                        start = np.random.randint(0, self.dataset.utt2num_frames[utt]-self.chunk_size+1)
+                        start = np.random.randint(
+                            0, self.dataset.utt2num_frames[utt] - self.chunk_size + 1)
                         end = start + self.chunk_size - 1
-                        chunk_selected.append("{0} {1} {2} {3} {4}".format(utt+'-'+str(chunk_counter[utt]),self.dataset.feats_scp[utt],start,end,self.dataset.utt2spk_int[utt]))
+                        chunk_selected.append("{0} {1} {2} {3} {4}".format(
+                            utt + '-' + str(chunk_counter[utt]), self.dataset.feats_scp[utt],
+                            start, end, self.dataset.utt2spk_int[utt]))
                         chunk_counter[utt] += 1
                 else:
-                    chunk_selected = np.random.choice(spk2chunks[key],num_chunks_selected,replace=False)
+                    chunk_selected = np.random.choice(
+                        spk2chunks[key], num_chunks_selected, replace=False)
 
                 for chunk in chunk_selected:
                     chunk_samples.append(chunk.split())
@@ -117,20 +134,24 @@ class ChunkSamples():
                 num_frames = self.dataset.utt2num_frames[utt]
 
                 if num_frames < self.chunk_size:
-                    logger.warn('The num frames {0} of {1} is less than chunk size {2}, so skip it.'.format(utt, num_frames, self.chunk_size))
+                    logger.warn('The num frames {0} of {1} is less than chunk size {2}, '
+                                'so skip it.'.format(utt, num_frames, self.chunk_size))
                 else:
                     chunk_counter = 0
                     offset = 0
                     overlap_size = int(self.overlap * self.chunk_size)
                     while offset + self.chunk_size <= num_frames:
-                        chunk_samples.append([utt+'-'+str(chunk_counter),ark_path,offset,offset+self.chunk_size-1,self.dataset.utt2spk_int[utt]])
+                        chunk_samples.append([utt + '-' + str(chunk_counter), ark_path, offset,
+                                              offset + self.chunk_size - 1, self.dataset.utt2spk_int[utt]])
                         chunk_counter += 1
                         offset += self.chunk_size - overlap_size
 
                     if not self.drop_last and offset + overlap_size < num_frames:
-                        chunk_samples.append([utt+'-'+str(chunk_counter),ark_path,num_frames-self.chunk_size,num_frames-1,self.dataset.utt2spk_int[utt]])
+                        chunk_samples.append([utt + '-' + str(chunk_counter), ark_path,
+                                              num_frames - self.chunk_size, num_frames - 1,
+                                              self.dataset.utt2spk_int[utt]])
 
-        # every_utt for valid
+        # every_utt for validation set
         elif self.chunk_type == "every_utt":
             chunk_selected = []
             for utt in self.dataset.utt2spk.keys():
@@ -138,24 +159,30 @@ class ChunkSamples():
                 num_frames = self.dataset.utt2num_frames[utt]
 
                 if num_frames < self.chunk_size:
-                    logger.warn('The num frames {0} of {1} is less than chunk size {2}, so skip it.'.format(utt, num_frames, self.chunk_size))
+                    logger.warn('The num frames {0} of {1} is less than chunk size {2}, so skip it.'.format(
+                        utt, num_frames, self.chunk_size))
                 else:
                     for chunk_counter in range(0, self.chunk_num_selection):
-                        start = np.random.randint(0, self.dataset.utt2num_frames[utt]-self.chunk_size+1)
+                        start = np.random.randint(
+                            0, self.dataset.utt2num_frames[utt] - self.chunk_size + 1)
                         end = start + self.chunk_size - 1
-                        chunk_selected.append("{0} {1} {2} {3} {4}".format(utt+'-'+str(chunk_counter),self.dataset.feats_scp[utt],start,end,self.dataset.utt2spk_int[utt]))
+                        chunk_selected.append("{0} {1} {2} {3} {4}".format(
+                            utt + '-' + str(chunk_counter), self.dataset.feats_scp[utt], start,
+                            end, self.dataset.utt2spk_int[utt]))
 
             for chunk in chunk_selected:
-                    chunk_samples.append(chunk.split())
+                chunk_samples.append(chunk.split())
 
         else:
-            raise TypeError("Do not support chunk type {0}.".format(self.chunk_type))
+            raise TypeError(
+                "Do not support chunk type {0}.".format(self.chunk_type))
 
         return chunk_samples
 
-    def save(self, save_path:str, force=True):
+    def save(self, save_path: str, force=True):
         if os.path.exists(save_path) and not force:
-            raise ValueError("The path {0} is exist. Please rm it by yourself.".format(save_path))
+            raise ValueError(
+                "The path {0} is exist. Please rm it by yourself.".format(save_path))
 
         save_dir = os.path.dirname(save_path)
         if not os.path.exists(save_dir):

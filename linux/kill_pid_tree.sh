@@ -11,40 +11,41 @@ depth= # If NULL, no limit. 0 means just killing the top pid
 show=false # If true, show pids which are killed
 signal=9
 
-. subtools/parse_options.sh
+. ${SUBTOOLS}/parse_options.sh
 
 if [[ $# -lt 1 ]];then
-echo "[exit] Num of parameters is not more than 1"
-echo "usage:$0 <pid-1> <pid-2> ..."
-exit 1
+  echo "[exit] Num of parameters is not more than 1"
+  echo "usage:$0 <pid-1> <pid-2> ..."
+  exit 1
 fi
 
 function find_and_kill(){
-    local current_pid=$1  
-    local current_depth=$2
+  local current_pid=$1  
+  local current_depth=$2
 
-    if [[ "$depth" == "" || "$current_depth" -lt "$depth" ]];then
-        # Find children's pids
-        childs=$(ps -ef | awk -v current_pid=$current_pid 'BEGIN{ ORS=" "; } $3==current_pid{ print $2; }')
+  # $2 is current pid, $3 is parent program pid
+  if [[ "$depth" == "" || "$current_depth" -lt "$depth" ]]; then
+    # Find children's pids
+    childs=$(ps -ef | awk -v current_pid=$current_pid 'BEGIN{ ORS=" "; } $3==current_pid{ print $2; }')
 
-        if [ ${#childs[@]} -ne 0 ]; then  
-            for child in ${childs[*]};do  
-                find_and_kill $child  $[$current_depth+1]
-            done  
-        fi
+    if [ ${#childs[@]} -ne 0 ]; then  
+      for child in ${childs[*]}; do  
+        find_and_kill $child  $[$current_depth+1]
+      done  
     fi
+  fi
 
-    # Kill the current pid 
-    exist=""
-    exist=$(ps -ax | awk '{print $1}' | grep -e "^${current_pid}")
-    [ "$exist" != "" ] && kill -$signal $current_pid  &&  [ "$show" == "true" ] && echo "$current_pid has been killed"
+  # Kill the current pid 
+  exist=""
+  exist=$(ps -ax | awk '{print $1}' | grep -e "^${current_pid}")
+  [ "$exist" != "" ] && kill -$signal $current_pid  &&  [ "$show" == "true" ] && echo "$current_pid has been killed"
 }
 
 until [ $# -eq 0 ]
 do
-[ "$show" == "true" ] && echo "kill $1..."
-find_and_kill $1 0
-shift
+  [ "$show" == "true" ] && echo "kill $1..."
+  find_and_kill $1 0
+  shift
 done
 
 

@@ -10,32 +10,34 @@ from torch.optim.lr_scheduler import _LRScheduler
 from .optim import *
 import libs.support.utils as utils
 
-## Wrapper ✿
+# Wrapper ✿
+
 
 class LRSchedulerWrapper():
 
-    def __init__(self, optimizer, params:dict={}):
-        # Suggested weight_decay: 1e-4 for l2 regularization (sgd, adam) and 
+    def __init__(self, optimizer, params: dict = {}):
+        # Suggested weight_decay: 1e-4 for l2 regularization (sgd, adam) and
         #                         1e-1 for decouped weight decay (sgdw, adamw, radam, ralamb, adamod etc.)
         default_params = {
-            "name":"warmR",
-            "1cycle.learn_rate":0.001,
-            "warmR.T_max":10,
-            "warmR.T_mult":1,
-            "warmR.factor":1.0,
-            "warmR.eta_min":4e-8,
-            "warmR.log_decay":False,
-            "warmR.lr_decay_step":1,
-            "reduceP.metric":'valid_acc',
-            "reduceP.check_interval":0, 
-            "reduceP.factor":0.5, 
-            "reduceP.patience":10, 
-            "reduceP.threshold":0.0001, 
-            "reduceP.cooldown":0, 
-            "reduceP.min_lr":0.
+            "name": "warmR",
+            "1cycle.learn_rate": 0.001,
+            "warmR.T_max": 10,
+            "warmR.T_mult": 1,
+            "warmR.factor": 1.0,
+            "warmR.eta_min": 4e-8,
+            "warmR.log_decay": False,
+            "warmR.lr_decay_step": 1,
+            "reduceP.metric": 'valid_acc',
+            "reduceP.check_interval": 0,
+            "reduceP.factor": 0.5,
+            "reduceP.patience": 10,
+            "reduceP.threshold": 0.0001,
+            "reduceP.cooldown": 0,
+            "reduceP.min_lr": 0.
         }
 
-        used_params = utils.assign_params_dict(default_params, params, force_check=False, support_unknow=True)
+        used_params = utils.assign_params_dict(
+            default_params, params, force_check=False, support_unknow=True)
         split_params = utils.split_params(used_params)
 
         if isinstance(optimizer, Lookahead):
@@ -46,11 +48,12 @@ class LRSchedulerWrapper():
         self.name = split_params["public"]["name"]
         if self.name == "1cycle":
             # To do.
-            self.lr_scheduler = optim.lr_scheduler.OneCycleLR(base_optimizer, **split_params["1cycle"])
+            self.lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(base_optimizer, **split_params["1cycle"])
         elif self.name == "warmR":
             T_max = split_params["warmR"].pop("T_max")
             self.lr_decay_step = split_params["warmR"].pop("lr_decay_step")
-            self.lr_scheduler = CosineAnnealingWarmRestarts(base_optimizer, T_max, **split_params["warmR"])
+            self.lr_scheduler = CosineAnnealingWarmRestarts(
+                base_optimizer, T_max, **split_params["warmR"])
         elif self.name == "reduceP":
             self.check_interval = split_params["reduceP"].pop("check_interval")
             self.metric = split_params["reduceP"].pop("metric")
@@ -59,27 +62,31 @@ class LRSchedulerWrapper():
             elif self.metric == "valid_loss":
                 mode = "min"
             else:
-                raise ValueError("Do not support {} metric for ReduceLROnPlateau strategy.".format(self.metric))
-            self.lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(base_optimizer, mode=mode, **split_params["reduceP"])
+                raise ValueError(
+                    "Do not support {} metric for ReduceLROnPlateau strategy.".format(self.metric))
+            self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(base_optimizer, mode=mode,
+                                                                           **split_params["reduceP"])
             self.init = False
             if utils.use_horovod():
-                raise TypeError("Do not support ReduceLROnPlateau for multi-gpu of Horovod now.")
+                raise TypeError(
+                    "Do not support ReduceLROnPlateau for multi-gpu of Horovod now.")
         else:
-            raise ValueError("Do not support {0} lr_scheduler now.".format(name))
-    
+            raise ValueError(
+                "Do not support {0} lr_scheduler now.".format(self.name))
+
     def is_reduce_point(self, training_point):
         if self.name == "reduceP":
             # It will check the point with a global num_iter value.
-            return (self.check_interval > 0 and (training_point[0] * training_point[2] + training_point[1] + 1)%self.check_interval == 0) or \
+            return (self.check_interval > 0 and (training_point[0] * training_point[2] + training_point[1] + 1) % self.check_interval == 0) or \
                    (self.check_interval <= 0 and training_point[1] + 1 == training_point[2])
         else:
             return False
 
     def step(self, training_point=None, valid_metric=None):
         if self.name == "warmR":
-            if self.lr_decay_step > 0 and training_point[1]%self.lr_decay_step == 0:
+            if self.lr_decay_step > 0 and training_point[1] % self.lr_decay_step == 0:
                 # It will check the point at the start of every epoch (not a global decay-strategy).
-                self.lr_scheduler.step(training_point[0]+training_point[1]/training_point[2])
+                self.lr_scheduler.step(training_point[0] + training_point[1] / training_point[2])
             elif self.lr_decay_step == 0:
                 self.lr_scheduler.step(training_point[0])
         elif self.name == "1cycle":
@@ -93,18 +100,21 @@ class LRSchedulerWrapper():
                     # In this case, we do not compute valid set for all processes but just computing it in main process
                     # and broadcast the metrics to other processes.
                     if not self.init:
-                        device = utils.get_device_from_optimizer(self.lr_scheduler.optimizer)
+                        device = utils.get_device_from_optimizer(
+                            self.lr_scheduler.optimizer)
                         # Create a must tentor to prepare to broadcast with torch.distributed.broadcast fuction.
-                        self.broadcast_metric = torch.randn(2, device=device) 
+                        self.broadcast_metric = torch.randn(2, device=device)
                         # New a group to broadcast the special metric tensor. It is important.
-                        self.group = torch.distributed.new_group(ranks=list(range(torch.distributed.get_world_size())), 
+                        self.group = torch.distributed.new_group(ranks=list(range(torch.distributed.get_world_size())),
                                                                  backend="nccl")
                         self.init = True
                     if utils.is_main_training():
                         # Gather the new value of metric.
-                        self.broadcast_metric = torch.tensor([valid_metric[0], valid_metric[1]], device=self.broadcast_metric.device)
+                        self.broadcast_metric = torch.tensor(
+                            [valid_metric[0], valid_metric[1]], device=self.broadcast_metric.device)
                     # Broadcast
-                    torch.distributed.broadcast(self.broadcast_metric, 0, group=self.group)
+                    torch.distributed.broadcast(
+                        self.broadcast_metric, 0, group=self.group)
                     metric = self.broadcast_metric[0] if self.metric == "valid_loss" else self.broadcast_metric[1]
                 else:
                     # Single-GPU case.
@@ -112,7 +122,9 @@ class LRSchedulerWrapper():
 
                 self.lr_scheduler.step(metric)
 
-## Learn rate scheduler ✿
+# Learn rate scheduler ✿
+
+
 class CosineAnnealingWarmRestarts(_LRScheduler):
     """Set the learning rate of each parameter group using a cosine annealing
     schedule, where :math:`\eta_{max}` is set to the initial lr, :math:`T_{cur}`
@@ -144,8 +156,9 @@ class CosineAnnealingWarmRestarts(_LRScheduler):
 
     def __init__(self, optimizer, T_0, T_mult=1, eta_min=0, factor=1.0, log_decay=False, last_epoch=-1):
         if T_0 <= 0 or not isinstance(T_0, int):
-            raise ValueError("Expected positive integer T_0, but got {}".format(T_0))
-        if T_mult <=0: # or not isinstance(T_mult, int):
+            raise ValueError(
+                "Expected positive integer T_0, but got {}".format(T_0))
+        if T_mult <= 0:  # or not isinstance(T_mult, int):
             raise ValueError("Expected T_mult > 0, but got {}".format(T_mult))
         self.T_0 = T_0
         self.T_i = T_0
@@ -155,16 +168,17 @@ class CosineAnnealingWarmRestarts(_LRScheduler):
         self.this_factor = 1
         self.T_cur = last_epoch
         self.log_decay = log_decay
-        super(CosineAnnealingWarmRestarts, self).__init__(optimizer, last_epoch)
+        super(CosineAnnealingWarmRestarts, self).__init__(
+            optimizer, last_epoch)
 
     def get_lr(self):
         if self.log_decay:
             eta_min = np.log10(self.eta_min)
-            return [ 10**(eta_min + (np.log10(base_lr * self.this_factor) - eta_min) * 
-                    (1 + math.cos(math.pi * self.T_cur / self.T_i)) / 2)
+            return [10**(eta_min + (np.log10(base_lr * self.this_factor) - eta_min) *
+                         (1 + math.cos(math.pi * self.T_cur / self.T_i)) / 2)
                     for base_lr in self.base_lrs]
         else:
-            return [self.eta_min + (base_lr * self.this_factor - self.eta_min) * 
+            return [self.eta_min + (base_lr * self.this_factor - self.eta_min) *
                     (1 + math.cos(math.pi * self.T_cur / self.T_i)) / 2
                     for base_lr in self.base_lrs]
 
@@ -201,14 +215,17 @@ class CosineAnnealingWarmRestarts(_LRScheduler):
                 self.T_i = self.T_i * self.T_mult
         else:
             if epoch < 0:
-                raise ValueError("Expected non-negative epoch, but got {}".format(epoch))
+                raise ValueError(
+                    "Expected non-negative epoch, but got {}".format(epoch))
             if epoch >= self.T_0:
                 if self.T_mult == 1:
                     self.T_cur = epoch % self.T_0
                     self.this_factor = self.factor ** (epoch // self.T_0)
                 else:
-                    n = int(math.log(max(0.05, (epoch / self.T_0 * (self.T_mult - 1) + 1)), self.T_mult))
-                    self.T_cur = epoch - self.T_0 * (self.T_mult ** n - 1) / (self.T_mult - 1)
+                    n = int(
+                        math.log(max(0.05, (epoch / self.T_0 * (self.T_mult - 1) + 1)), self.T_mult))
+                    self.T_cur = epoch - self.T_0 * \
+                        (self.T_mult ** n - 1) / (self.T_mult - 1)
                     self.T_i = self.T_0 * self.T_mult ** (n)
                     self.this_factor = self.factor ** n
             else:

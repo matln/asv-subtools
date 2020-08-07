@@ -9,9 +9,9 @@ function check(){
 	support=$2
 	name=$3
 	
-	for x in $(echo ${varset} | sed 's/-/ /g');do
+	for x in ${varset//-/ }; do
 		lable=0
-		for i in $support;do
+		for i in $support; do
 			[ "$x" == "$i" ] && lable=1 && break
 		done
 		[ "$lable" == 0 ] && echo "[exit] Don't support [ $x ] in [ $varset ] $name and support [ $support ] only." && exit 1
@@ -22,8 +22,8 @@ function check(){
 
 function readconf(){
 	[ $# != 2 ] && echo "[exit] readconf(): num of params != 2" 1>&2 && exit 1
-	key=$1
-	conf=$2
+	local key=$1
+	local conf=$2
 	
 	[ ! -f $conf ] && echo "[exit] $conf is not exist, please check provided dataset" 1>&2 && exit 1
 	value=$(awk -v key=$key '{if($1==key) print $2}' $conf)
@@ -34,34 +34,39 @@ function readconf(){
 
 function writeconf(){
 	[ $# != 3 ] && return 0
-	key=$1
-	value=$2
-	conf=$3
+	local key=$1
+	local value=$2
+	local conf=$3
 	
 	[ -f $conf ] && \
-	sed -i '/^'"$key"' /d' $conf
+    sed -i '/^'"$key"' /d' $conf
 	
 	[ -f $conf ] && \
-	echo "$key $value" >> $conf
-	return 0
-}
-function findlist(){
-	[ $# != 2 ] && echo "[exit] findlist(): num of params != 2" 1>&2 && exit 1
-	key=$1
-	list=$(cat $2)
-	
-	num=$(echo -e "$list\n$list\n$key" | sort | uniq -u | wc -l )
-	echo $num
+    echo "$key $value" >> $conf
 	return 0
 }
 
+# 确认 outfile 是否已经在 existed_outfile list 中存在
+function findoutfile(){
+	[ $# != 2 ] && echo "[exit] findlist(): num of params != 2" 1>&2 && exit 1
+  local outfile=$1
+	existed_outfile=$(cat "$2")
+	
+	num=$(echo -e "$existed_outfile\n$existed_outfile\n$outfile" | sort | uniq -u | wc -l )
+	echo "$num"
+	return 0
+}
+
+# 某些 process 需要先进行其他的一些 process，例如，submean_process="lda-getmean"
+# 我们需要先 lda 降维，再计算 global_mean，最后才是 subtract_mean 操作
+# 通过 get_resource 函数得到当前 process 所需要的前序 process 的结果文件 
 function get_resource(){
-	prekey=$1
-	conf=$2
+	local prekey=$1
+	local conf=$2
 	
 	tmp_data_conf=$(readconf "${prekey}_data_conf" $conf)
 	tmp_string=$(readconf "${prekey}_process" $tmp_data_conf)
-	tmp_dir=$(readconf "dir" $tmp_data_conf)
+	tmp_dir=$(readconf "vectordir" $tmp_data_conf)
 	out=$(process $tmp_data_conf $tmp_string)
 	
 	echo $tmp_dir/$out
@@ -69,53 +74,57 @@ function get_resource(){
 	return 0
 }
 
+# 获取 process 执行的参数
 function get_params(){
-	mark=$1
-	conf=$2
-	infile=$3
+	local process=$1
+	local conf=$2
+	local vectorfile=$3
 
+	local data
 	data=$(readconf "data" $conf)
-	dir=$(readconf "dir" $conf)
+	local dir
+	dir=$(readconf "vectordir" $conf)
+  local outfile
 
-	case $mark in
+	case $process in
 		mean)
-			outfile="spk_${infile%.*}_${mark}.ark"
-			string="${data}/spk2utt ${dir}/$infile ${dir}/$outfile ${dir}/num_utts.ark";;
+			outfile="spk_${vectorfile%.*}_${process}.ark"
+			string="${data}/spk2utt ${dir}/$vectorfile ${dir}/$outfile ${dir}/num_utts.ark";;
 		getmean)
-			outfile="${infile%.*}.global.vec"
-			string="${dir}/$infile ${dir}/$outfile";;
+			outfile="${vectorfile%.*}.global.vec"
+			string="${dir}/$vectorfile ${dir}/$outfile";;
 		submean)
 			global_mean=$(get_resource submean $conf)
-			outfile="${infile%.*}_${mark}.ark"
-			string="$global_mean ${dir}/$infile ${dir}/$outfile";;
+			outfile="${vectorfile%.*}_${process}.ark"
+			string="$global_mean ${dir}/$vectorfile ${dir}/$outfile";;
 		norm)
-			outfile="${infile%.*}_${mark}.ark"
-			string="${dir}/$infile ${dir}/$outfile";;
+			outfile="${vectorfile%.*}_${process}.ark"
+			string="${dir}/$vectorfile ${dir}/$outfile";;
 		lda)
 			lda_mat=$(get_resource lda $conf)
-			outfile="${infile%.*}_${mark}${clda}.ark"
-			string="$lda_mat ${dir}/$infile ${dir}/$outfile";;
+			outfile="${vectorfile%.*}_${process}${clda}.ark"
+			string="$lda_mat ${dir}/$vectorfile ${dir}/$outfile";;
 		trainlda)
 			outfile="transform_$clda.mat"
-			string="${dir}/$infile ${data}/utt2spk ${dir}/$outfile";;
+			string="${dir}/$vectorfile ${data}/utt2spk ${dir}/$outfile";;
 		whiten)
 			whiten_mat=$(get_resource whiten $conf)
-			outfile="${infile%.*}_${mark}.ark"
-			string="$whiten_mat ${dir}/$infile ${dir}/$outfile";;
+			outfile="${vectorfile%.*}_${process}.ark"
+			string="$whiten_mat ${dir}/$vectorfile ${dir}/$outfile";;
 		trainwhiten)
 			outfile="zca_whiten.mat"
-			string="${dir}/$infile ${dir}/$outfile";;
+			string="${dir}/$vectorfile ${dir}/$outfile";;
 		trainpcawhiten)
 			outfile="pca_whiten.mat"
-			string="${dir}/$infile ${dir}/$outfile";;
+			string="${dir}/$vectorfile ${dir}/$outfile";;
 		trainplda)
 			outfile="plda"
-			string="$data/spk2utt $dir/$infile $dir/$outfile";;
+			string="$data/spk2utt $dir/$vectorfile $dir/$outfile";;
 		trainaplda)
 			plda=$(get_resource plda $conf)
 			outfile="aplda"
-			string="$plda $dir/$infile $dir/$outfile";;
-		*)echo "[exit] Do not support $mark process now." 1>&2 && exit 1;;
+			string="$plda $dir/$vectorfile $dir/$outfile";;
+		*)echo "[exit] Do not support $process process now." 1>&2 && exit 1;;
 	esac
 	
 	echo $outfile $string
@@ -123,119 +132,121 @@ function get_params(){
 }
 
 function process(){
-	conf=$1
-	process_string=$2
+	local conf=$1
+	local process_string=$2
 	
-	current=$(readconf "input" $conf)
-	dir=$(readconf "dir" $conf)
+	current_file=$(readconf "vectorfile" "$conf")
+  local dir
+	dir=$(readconf "vectordir" "$conf")
 	
-	for the_process in $(echo ${process_string} | sed 's/-/ /g');do
+	for the_process in ${process_string//-/ }; do
 		doit=1
+    # 通过 source 或 . 加载此脚本，所以可以使用 $lda 等变量替换
 		[[ "$lda" != "true" && "$the_process" == "lda" ]] && doit=0
 		[[ "$submean" != "true" && "$the_process" == "submean" ]] && doit=0
 		[[ "$whiten" != "true" && "$the_process" == "whiten" ]] && doit=0
 		
-		if [ "$doit" == 1 ];then
-			tmp=$(get_params $the_process $conf $current)
-			current=$(echo "$tmp" | awk '{print $1}')
+		if [ "$doit" == 1 ]; then
+			tmp=$(get_params $the_process $conf $current_file)
+			current_file=$(echo "$tmp" | awk '{print $1}')
 			params=$(echo "$tmp" | awk '{$1="";print $0}')
-			exist=$(findlist "$dir/$current" "$list") # 1 -> do not exist
+			exist=$(findoutfile "$dir/$current_file" "$processed")  # 1 -> do not exist  3 - > has been processed
 
-			[[ ! -f "$dir/$current" || "$process_force_clear" == "true" ]] && [[ "$exist" == 1 ]] && \
-			$the_process $params
-			echo "$dir/$current" >> $list
+			[[ ! -f "$dir/$current_file" || "$process_force_clear" == "true" ]] && [[ "$exist" == 1 ]] && \
+        $the_process $params
+			echo "$dir/$current_file" >> "$processed"
 		fi
 	done
 	
-	echo $current
+	echo "$current_file"
 	return 0
 }
 
 
 ############################################################################
 function mean(){
-	spk2utt=$1
-	infile=$2
-	outfile=$3
-	num_utts=$4
+	local spk2utt=$1
+	local vectorfile=$2
+	local outfile=$3
+	local num_utts=$4
 	
 	specifier=ark
-	[ ${infile##*.} == "scp" ] && specifier=scp
+	[ "${#vectorfile#*.}" == "scp" ] && specifier=scp
 	
-	ivector-mean ark:$spk2utt $specifier:$infile ark:$outfile ark,t:$num_utts || exit 1
+	ivector-mean ark:"$spk2utt" $specifier:"$vectorfile" ark:"$outfile" ark,t:"$num_utts" || exit 1
 	return 0
 }
 
 function getmean(){
 # compute global mean.vector for substract mean.vector
-	infile=$1
-	outmean=$2
+	local vectorfile=$1
+	local outmean=$2
 	
 	specifier=ark
-	[ ${infile##*.} == "scp" ] && specifier=scp
+	[ "${vectorfile##*.}" == "scp" ] && specifier=scp
 	
-	ivector-mean $specifier:$infile $outmean || exit 1
+	ivector-mean $specifier:"$vectorfile" "$outmean" || exit 1
 	return 0
 }
 
 function submean(){
 # substract global mean.vector
-	mean=$1
-	infile=$2
-	outfile=$3
+	local mean=$1
+	local vectorfile=$2
+	local outfile=$3
 	
 	specifier=ark
-	[ ${infile##*.} == "scp" ] && specifier=scp
+	[ "${vectorfile##*.}" == "scp" ] && specifier=scp
 	
-	ivector-subtract-global-mean $mean $specifier:$infile ark:$outfile || exit 1
+	ivector-subtract-global-mean "$mean" $specifier:"$vectorfile" ark:"$outfile" || exit 1
 	return 0
 }
 
 function norm(){
-	infile=$1
-	outfile=$2
+	local vectorfile=$1
+	local outfile=$2
 	
 	specifier=ark
-	[ "${infile##*.}" == "scp" ] && specifier=scp
+	[ "${vectorfile##*.}" == "scp" ] && specifier=scp
 	
-	ivector-normalize-length $specifier:$infile ark:$outfile || exit 1
+	ivector-normalize-length $specifier:"$vectorfile" ark:"$outfile" || exit 1
 	return 0
 }
 
 function transform(){
 # an implement of the interface for any matrix to transform data
-	mat=$1
-	infile=$2
-	outfile=$3
+	local mat=$1
+	local vectorfile=$2
+	local outfile=$3
 	
 	specifier=ark
-	[ "${infile##*.}" == "scp" ] && specifier=scp
+	[ "${vectorfile##*.}" == "scp" ] && specifier=scp
 	
-	ivector-transform $mat $specifier:$infile ark:$outfile || exit 1
+	ivector-transform "$mat" $specifier:"$vectorfile" ark:"$outfile" || exit 1
 	return 0
 }
 
 function trainlda(){
-	infile=$1
-	utt2spk=$2
-	outfile=$3
+	local vectorfile=$1
+	local utt2spk=$2
+	local outfile=$3
 	
 	specifier=ark
-	[ "${infile##*.}" == "scp" ] && specifier=scp
+	[ "${vectorfile##*.}" == "scp" ] && specifier=scp
 	
-	ivector-compute-lda --dim=$clda --total-covariance-factor=0.1 $specifier:$infile ark:$utt2spk $outfile || exit 1
+	ivector-compute-lda --dim="$clda" --total-covariance-factor=0.1 $specifier:"$vectorfile" ark:"$utt2spk" "$outfile" || exit 1
 	return 0
 }
 
 function lda(){
-	transform $@
+	transform "$@"
 	return 0
 }
 
 function trainwhiten(){
 # ZCA whitening
-	trainfile=$1
-	outmat=$2
+	local trainfile=$1
+	local outmat=$2
 	
 	train_specifier=ark
 	[ "${trainfile##*.}" == "scp" ] && train_specifier=scp
@@ -243,14 +254,14 @@ function trainwhiten(){
 	[ ! -f $trainfile.txt ] && copy-vector $train_specifier:$trainfile ark,t:$trainfile.txt
 	
 	# should print information to terminal with 1>&2 when using python or will be error
-	python3 subtools/score/whiten/train_ZCA_Whitening.py --ark-format=true $trainfile.txt $outmat 1>&2  || exit 1
+	python3 ${SUBTOOLS}/score/whiten/train_ZCA_Whitening.py --ark-format=true $trainfile.txt $outmat 1>&2  || exit 1
 	return 0
 }
 
 function trainpcawhiten(){
 # PCA whitening 
-	trainfile=$1
-	outmat=$2
+	local trainfile=$1
+	local outmat=$2
 	
 	train_specifier=ark
 	[ "${trainfile##*.}" == "scp" ] && train_specifier=scp
@@ -260,33 +271,33 @@ function trainpcawhiten(){
 }
 
 function whiten(){
-	transform $@
+	transform "$@"
 	return 0
 }
 
 function trainplda(){
-	spk2utt=$1
-	infile=$2
-	outfile=$3
+	local spk2utt=$1
+	local vectorfile=$2
+	local outfile=$3
 	
 	specifier=ark
-	[ "${infile##*.}" == "scp" ] && specifier=scp
+	[ "${vectorfile##*.}" == "scp" ] && specifier=scp
 	
-	ivector-compute-plda ark:$spk2utt $specifier:$infile $outfile || exit 1
+	ivector-compute-plda ark:"$spk2utt" $specifier:"$vectorfile" "$outfile" || exit 1
 	
 	return 0
 }
 
 function trainaplda(){
-	plda=$1
-	infile=$2
-	outfile=$3
+	local plda=$1
+	local vectorfile=$2
+	local outfile=$3
 	
 	specifier=ark
-	[ "${infile##*.}" == "scp" ] && specifier=scp
+	[ "${vectorfile##*.}" == "scp" ] && specifier=scp
 	
 	ivector-adapt-plda --within-covar-scale=$within_covar_scale --between-covar-scale=$between_covar_scale \
-		--mean-diff-scale=$mean_diff_scale $plda $specifier:$infile $outfile || exit 1
+		--mean-diff-scale=$mean_diff_scale $plda $specifier:"$vectorfile" "$outfile" || exit 1
 		
 	return 0
 }

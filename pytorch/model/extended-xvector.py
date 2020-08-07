@@ -2,52 +2,61 @@
 
 # Copyright xmuspeech (Author: Snowdar 2020-02-05)
 
+import os
+import sys
 import torch
 import torch.nn.functional as F
-import libs.support.utils as utils
+
+# subtools = '/data/lijianchen/workspace/sre/subtools'
+subtools = os.getenv('SUBTOOLS')
+sys.path.insert(0, '{}/pytorch'.format(subtools))
 
 from libs.nnet import *
-
+import libs.support.utils as utils
 
 
 class ExtendedXvector(TopVirtualNnet):
     """ An entended x-vector framework """
-    
-    def init(self, inputs_dim, num_targets, extend=True, nonlinearity="relu", 
+
+    def init(self, inputs_dim, num_targets, extend=True, nonlinearity="relu",
              aug_dropout=0.2, training=True, extracted_embedding="far"):
 
         # Var
+        # 用 fc6层 还是 fc7层 提取 embedding
         self.extracted_embedding = extracted_embedding
-        
+
         # Nnet
+        # acustic feature 随机将某几维置0, 对于一个输入3维的张量，feature_dim 相当于channels
         self.aug_dropout = torch.nn.Dropout2d(p=aug_dropout) if aug_dropout > 0 else None
 
-        self.tdnn1 = ReluBatchNormTdnnLayer(inputs_dim,512,[-2,-1,0,1,2],nonlinearity=nonlinearity)
-        self.ex_tdnn1 = ReluBatchNormTdnnLayer(512,512,nonlinearity=nonlinearity) if extend else None
+        self.tdnn1 = ReluBatchNormTdnnLayer(inputs_dim, 512, [-2, -1, 0, 1, 2], nonlinearity=nonlinearity)
+        # 类似1x1卷积核
+        self.ex_tdnn1 = ReluBatchNormTdnnLayer(512, 512, nonlinearity=nonlinearity) if extend else None
 
-        self.tdnn2 = ReluBatchNormTdnnLayer(512,512,[-2,0,2],nonlinearity=nonlinearity)
-        self.ex_tdnn2 = ReluBatchNormTdnnLayer(512,512,nonlinearity=nonlinearity) if extend else None
+        self.tdnn2 = ReluBatchNormTdnnLayer(512, 512, [-2, 0, 2], nonlinearity=nonlinearity)
+        self.ex_tdnn2 = ReluBatchNormTdnnLayer(512, 512, nonlinearity=nonlinearity) if extend else None
 
-        self.tdnn3 = ReluBatchNormTdnnLayer(512,512,[-3,0,3],nonlinearity=nonlinearity)
-        self.ex_tdnn3 = ReluBatchNormTdnnLayer(512,512,nonlinearity=nonlinearity) if extend else None
+        self.tdnn3 = ReluBatchNormTdnnLayer(512, 512, [-3, 0, 3], nonlinearity=nonlinearity)
+        self.ex_tdnn3 = ReluBatchNormTdnnLayer(512, 512, nonlinearity=nonlinearity) if extend else None
 
-        self.ex_tdnn4 = ReluBatchNormTdnnLayer(512,512,[-4,0,4],nonlinearity=nonlinearity) if extend else None
-        self.ex_tdnn5 = ReluBatchNormTdnnLayer(512,512,nonlinearity=nonlinearity) if extend else None
+        self.ex_tdnn4 = ReluBatchNormTdnnLayer(512, 512, [-4, 0, 4], nonlinearity=nonlinearity) if extend else None
+        self.ex_tdnn5 = ReluBatchNormTdnnLayer(512, 512, nonlinearity=nonlinearity) if extend else None
 
-        self.tdnn4 = ReluBatchNormTdnnLayer(512,512,nonlinearity=nonlinearity)
-        self.tdnn5 = ReluBatchNormTdnnLayer(512,1500,nonlinearity=nonlinearity)
+        self.tdnn4 = ReluBatchNormTdnnLayer(512, 512, nonlinearity=nonlinearity)
+        self.tdnn5 = ReluBatchNormTdnnLayer(512, 1500, nonlinearity=nonlinearity)
 
         self.stats = StatisticsPooling(1500, stddev=True)
-        self.tdnn6 = ReluBatchNormTdnnLayer(self.stats.get_output_dim(),512,nonlinearity=nonlinearity)
-        self.tdnn7 = ReluBatchNormTdnnLayer(512,512,nonlinearity=nonlinearity)
+        # 因为此时经过pooling层合为1帧向量，所以tdnn6相当于全连接层
+        self.tdnn6 = ReluBatchNormTdnnLayer(self.stats.get_output_dim(), 512, nonlinearity=nonlinearity)
+        self.tdnn7 = ReluBatchNormTdnnLayer(512, 512, nonlinearity=nonlinearity)
 
         # Do not need when extracting embedding.
-        if training :
+        if training:
             self.loss = SoftmaxLoss(512, num_targets)
 
             # An example to using transform-learning without initializing loss.affine parameters
-            self.transform_keys = ["tdnn1","tdnn2","tdnn3","tdnn4","tdnn5","stats","tdnn6","tdnn7",
-                                   "ex_tdnn1","ex_tdnn2","ex_tdnn3","ex_tdnn4","ex_tdnn5"]
+            self.transform_keys = ["tdnn1", "tdnn2", "tdnn3", "tdnn4", "tdnn5", "stats", "tdnn6", "tdnn7",
+                                   "ex_tdnn1", "ex_tdnn2", "ex_tdnn3", "ex_tdnn4", "ex_tdnn5"]
 
     @utils.for_device_free
     def forward(self, inputs):
@@ -73,7 +82,6 @@ class ExtendedXvector(TopVirtualNnet):
         outputs = self.tdnn7(x)
 
         return outputs
-
 
     @utils.for_device_free
     def get_loss(self, inputs, targets):
@@ -111,7 +119,7 @@ class ExtendedXvector(TopVirtualNnet):
         x = self.tdnn5(x)
         x = self.stats(x)
 
-        if self.extracted_embedding == "far" :
+        if self.extracted_embedding == "far":
             xvector = self.tdnn6.affine(x)
         elif self.extracted_embedding == "near":
             x = self.tdnn6(x)

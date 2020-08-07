@@ -2,8 +2,7 @@
 
 # Copyright xmuspeech (Author:Snowdar 2020-03-08)
 
-stage=3
-endstage=4
+stage=0
 multi_gpu_solution="ddp"
 omp_num_threads=1
 port=0
@@ -29,20 +28,18 @@ num_gpu=1
 while true; do
   [ $# -eq 0 ] && break
 
-  if [[ $1 == "--gpu-id="* ]];then
+  if [[ $1 == "--gpu-id="* ]]; then
     gpu_id_option=$(echo "$1" | sed 's/ /,/g')
     launcher_options="$launcher_options $gpu_id_option"
     num_gpu=$(echo $gpu_id_option | awk -F '=' '{print $2}' | sed 's/[,-]/\n/g' | sed '/^$/d' | wc -l)
-  elif [[ $1 == "--multi-gpu-solution="* ]];then
+  elif [[ $1 == "--multi-gpu-solution="* ]]; then
     multi_gpu_solution=$(echo $1 | awk -F '=' '{print $2}')
     launcher_options="$launcher_options $1"
-  elif [[ $1 == "--port="* ]];then
+  elif [[ $1 == "--port="* ]]; then
     port=$(echo $1 | awk -F '=' '{print $2}')
     launcher_options="$launcher_options $1"
-  elif [[ $1 == "--stage="* ]];then
+  elif [[ $1 == "--stage="* ]]; then
     stage=$(echo $1 | awk -F '=' '{print $2}')
-  elif [[ $1 == "--endstage="* ]];then
-    endstage=$(echo $1 | awk -F '=' '{print $2}')
   else
     launcher_options="$launcher_options $1"
   fi
@@ -50,15 +47,15 @@ while true; do
 done
 
 # Add multi-gpu case.
-if [ $num_gpu -gt 1 ];then
+if [ $num_gpu -gt 1 ]; then
   if [ "$multi_gpu_solution" == "horovod" ];then
     bash ${SUBTOOLS}/pytorch/launcher/multi_gpu/check_horovod.sh || exit 1
     # Ser cache for synchronize batchnorm to avoid WARNING.
     export HOROVOD_CACHE_CAPACITY=0
     train_cmd="horovodrun -np $num_gpu python3"
-  elif [ "$multi_gpu_solution" == "ddp" ];then
+  elif [ "$multi_gpu_solution" == "ddp" ]; then
     export OMP_NUM_THREADS=$omp_num_threads
-    if [ "$port" == "0" ];then
+    if [ "$port" == "0" ]; then
       port=$(python3 ${SUBTOOLS}/pytorch/launcher/multi_gpu/get_free_port.py)
       launcher_options="$launcher_options --port $port"
     fi
@@ -72,12 +69,16 @@ fi
 
 # Split this two stage to free GPU memory of model by an exit-python way 
 # and use these GPU memory to extract x-vectors.
-if [[ "$stage" -le 3 && "$endstage" -ge "$stage" ]];then
-  $train_cmd $launcher $launcher_options --stage=$stage --endstage=$endstage || exit 1 
+# if [[ "$stage" -le 3 && "$endstage" -ge "$stage" ]];then
+#   $train_cmd $launcher $launcher_options --stage=$stage --endstage=$endstage || exit 1 
+# fi
+if [[ "$stage" -eq 0 ]]; then
+  $train_cmd $launcher $launcher_options --stage=0 || exit 1 
 fi
 
-if [[ "$stage" -le 4 && "$endstage" -ge 4 ]];then
-  python3 $launcher --stage=4 || exit 1
+# if [[ "$stage" -le 4 && "$endstage" -ge 4 ]];then
+if [[ "$stage" -eq 1 ]]; then
+  python3 $launcher $launcher_options --stage=1 || exit 1
 fi
 
 exit 0

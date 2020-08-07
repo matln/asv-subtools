@@ -35,7 +35,7 @@ def send_mail(message, subject, email_id):
                 email=email_id), shell=True)
     except Exception as e:
         logger.info("Unable to send mail due to error:\n {error}".format(
-                        error=str(e)))
+            error=str(e)))
         pass
 
 
@@ -82,6 +82,7 @@ class smart_open(object):
     e.g.: with smart_open(filename, 'w') as fh:
             print ("foo", file=fh)
     """
+
     def __init__(self, filename, mode="r"):
         self.filename = filename
         self.mode = mode
@@ -111,6 +112,7 @@ class smart_open(object):
     e.g.: with smart_open(filename, 'w') as fh:
             print ("foo", file=fh)
     """
+
     def __init__(self, filename, mode="r"):
         self.filename = filename
         self.mode = mode
@@ -153,10 +155,10 @@ def execute_command(command):
     p.communicate()
     if p.returncode is not 0:
         raise Exception("Command exited with status {0}: {1}".format(
-                p.returncode, command))
+            p.returncode, command))
 
 
-def get_command_stdout(command, require_zero_status = True):
+def get_command_stdout(command, require_zero_status=True):
     """ Executes a command and returns its stdout output as a string.  The
         command is executed with shell=True, so it may contain pipes and
         other shell constructs.
@@ -180,6 +182,7 @@ def get_command_stdout(command, require_zero_status = True):
             logger.warning(output)
     return stdout if type(stdout) is str else stdout.decode()
 
+
 def wait_for_background_commands():
     """ This waits for all threads to exit.  You will often want to
         run this at the end of programs that have launched background
@@ -189,7 +192,8 @@ def wait_for_background_commands():
         if not t == threading.current_thread():
             t.join()
 
-def background_command(command, require_zero_status = False):
+
+def background_command(command, require_zero_status=False):
     """Executes a command in a separate thread, like running with '&' in the shell.
        If you want the program to die if the command eventually returns with
        nonzero status, then set require_zero_status to True.  'command' will be
@@ -213,8 +217,8 @@ def background_command(command, require_zero_status = False):
     p = subprocess.Popen(command, shell=True)
     thread = threading.Thread(target=background_command_waiter,
                               args=(command, p, require_zero_status))
-    thread.daemon=True  # make sure it exits if main thread is terminated
-                        # abnormally.
+    thread.daemon = True  # make sure it exits if main thread is terminated
+    # abnormally.
     thread.start()
     return thread
 
@@ -234,4 +238,3 @@ def background_command_waiter(command, popen_object, require_zero_status):
             thread_module.interrupt_main()
         else:
             logger.warning(str)
-

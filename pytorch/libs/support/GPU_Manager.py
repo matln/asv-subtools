@@ -156,3 +156,9 @@ if check_gpus():
             return int(index)
 else:
     raise ImportError('GPU available check failed')
+
+
+if __name__ == "__main__":
+    gm=GPUManager()
+    print(gm.gpus)
+    print(gm.auto_choice())

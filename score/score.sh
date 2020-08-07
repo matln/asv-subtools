@@ -12,14 +12,14 @@ function get_trials(){
 	
 	enrolldata=$(readconf "data" $enroll_conf)
 	testdata=$(readconf "data" $test_conf)
-	testdir=$(readconf "dir" $test_conf)
-	input=$(readconf "input" $test_conf)
+	testdir=$(readconf "vectordir" $test_conf)
+	input=$(readconf "vectorfile" $test_conf)
 	
 	run.pl $testdir/log/speaker_mean.log \
 		ivector-mean ark:$testdata/spk2utt scp:$testdir/$input "ark:/dev/null" "ark,t:/dev/null"
 		
-	subtools/getTrials.sh --only-pair false 1 $enrolldata/spk2utt $testdata/utt2spk $trials.raw && \
-			subtools/getTrials.sh 2 $trials.raw $testdir $trials && echo "Make $testset trials done."
+	${SUBTOOLS}/getTrials.sh --only-pair false 1 $enrolldata/spk2utt $testdata/utt2spk $trials.raw && \
+			${SUBTOOLS}/getTrials.sh 2 $trials.raw $testdir $trials && echo "Make $testset trials done."
 	return 0
 
 }
@@ -31,20 +31,20 @@ function get_params_for_score(){
 	extra_name=$4
 	
 	trials=$(readconf "trials" $test_conf)
-	enroll_final=$(readconf "dir" $enroll_conf)/$(readconf "final" $enroll_conf)
-	test_final=$(readconf "dir" $test_conf)/$(readconf "final" $test_conf)
+	enroll_final=$(readconf "vectordir" $enroll_conf)/$(readconf "final" $enroll_conf)
+	test_final=$(readconf "vectordir" $test_conf)/$(readconf "final" $test_conf)
 	
 	enroll_data=$(readconf "data" $enroll_conf)
 	test_data=$(readconf "data" $test_conf)
 	
-	enroll_dir=$(readconf "dir" $enroll_conf)
-	outdir=$(readconf "dir" $test_conf)/score
+	enroll_dir=$(readconf "vectordir" $enroll_conf)
+	outdir=$(readconf "vectordir" $test_conf)/score
 	mkdir -p $outdir
 	
 	enrollname=$(readconf "name" $enroll_conf)
 	testname=$(readconf "name" $test_conf)
 	
-	input=$(readconf "input" $test_conf)
+	input=$(readconf "vectorfile" $test_conf)
 	inputname=${input%.*}
 	final_file=$(readconf "final" $test_conf)
 	suffix=$(echo ${final_file%.*} | sed 's/^'"$inputname"'//g')
@@ -158,11 +158,11 @@ function svm(){
 	[ ${final_test##*.} == "scp" ] && specifier2=scp
 	
 	[[ ! -f $final_enroll.svm.data || $score_force_clear == "true" ]] && \
-		subtools/score/svm/prepareSVMdata.sh --normalize true $enroll_data $specifier1:$final_enroll  $final_enroll.svm.data
+		${SUBTOOLS}/score/svm/prepareSVMdata.sh --normalize true $enroll_data $specifier1:$final_enroll  $final_enroll.svm.data
 	[[ ! -f $final_test.svm.data || $score_force_clear == "true" ]] && \
-		subtools/score/svm/prepareSVMdata.sh --normalize true $test_data $specifier2:$final_test  $final_test.svm.data
+		${SUBTOOLS}/score/svm/prepareSVMdata.sh --normalize true $test_data $specifier2:$final_test  $final_test.svm.data
 
-	python subtools/score/svm/svm_ratelimit.py $final_enroll.svm.data $final_test.svm.data $out_score.tmp \
+	python ${SUBTOOLS}/score/svm/svm_ratelimit.py $final_enroll.svm.data $final_test.svm.data $out_score.tmp \
 	-1 $curve $Cvalue 1>&2 || exit 1
 
 	sed 's/[]\[]//g' $out_score.tmp | sed 's/ /\n/g' | sed '/^$/d' | paste $the_trials - | awk '{print $1,$2,$4}' > $out_score
@@ -182,7 +182,7 @@ function gmm(){
 	specifier2=ark
 	[ ${final_test##*.} == "scp" ] && specifier2=scp
 	
-	subtools/score/gmm/scoreByGMM.sh --mmi $mmi --E $E --num-iters-init $num_iters_init --num-frames $num_frames \
+	${SUBTOOLS}/score/gmm/scoreByGMM.sh --mmi $mmi --E $E --num-iters-init $num_iters_init --num-frames $num_frames \
     --min-gaussian-weight $min_gaussian_weight --cnum $cnum --num-iters $num_iters --num-gselect $num_gselect \
 	--adapt $adapt --nj $nj --tau $tau --weight-tau $weight_tau --num-frames-den $num_frames_den \
 	--smooth-tau $smooth_tau --init-mmi $init_mmi \

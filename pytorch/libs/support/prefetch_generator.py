@@ -3,11 +3,17 @@
 # Github: https://github.com/justheuristic/prefetch_generator.
 
 """
-#based on http://stackoverflow.com/questions/7323664/python-generator-pre-fetch
-This is a single-function package that transforms arbitrary generator into a background-thead generator that prefetches several batches of data in a parallel background thead.
-This is useful if you have a computationally heavy process (CPU or GPU) that iteratively processes minibatches from the generator while the generator consumes some other resource (disk IO / loading from database / more CPU if you have unused cores). 
-By default these two processes will constantly wait for one another to finish. If you make generator work in prefetch mode (see examples below), they will work in parallel, potentially saving you your GPU time.
-We personally use the prefetch generator when iterating minibatches of data for deep learning with tensorflow and theano ( lasagne, blocks, raw, etc.).
+based on http://stackoverflow.com/questions/7323664/python-generator-pre-fetch
+This is a single-function package that transforms arbitrary generator into a background-thead
+    generator that prefetches several batches of data in a parallel background thead.
+This is useful if you have a computationally heavy process (CPU or GPU) that iteratively
+    processes minibatches from the generator while the generator consumes some other resource
+    (disk IO / loading from database / more CPU if you have unused cores).
+By default these two processes will constantly wait for one another to finish. If you make
+    generator work in prefetch mode (see examples below), they will work in parallel, potentially
+    saving you your GPU time.
+We personally use the prefetch generator when iterating minibatches of data for deep learning
+    with tensorflow and theano ( lasagne, blocks, raw, etc.).
 Quick usage example (ipython notebook) - https://github.com/justheuristic/prefetch_generator/blob/master/example.ipynb
 This package contains two objects
  - BackgroundGenerator(any_other_generator[,max_prefetch = something])
@@ -27,7 +33,6 @@ or
 More details are written in the BackgroundGenerator doc
 help(BackgroundGenerator)
 """
-
 
 
 import threading
@@ -82,11 +87,12 @@ class BackgroundGenerator(threading.Thread):
     def __len__(self):
         return len(self.generator)
 
-#decorator
+# decorator
 class background:
     def __init__(self, max_prefetch=1):
         self.max_prefetch = max_prefetch
+
     def __call__(self, gen):
-        def bg_generator(*args,**kwargs):
-            return BackgroundGenerator(gen(*args,**kwargs), max_prefetch=self.max_prefetch)
+        def bg_generator(*args, **kwargs):
+            return BackgroundGenerator(gen(*args, **kwargs), max_prefetch=self.max_prefetch)
         return bg_generator

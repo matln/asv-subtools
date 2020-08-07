@@ -6,13 +6,13 @@ f=1 # field of utt-id in id-file
 exclude=false
 share=true # if false, generate a copy of ark for out-vector-dir as a single dir but it will need some space.
 
-. subtools/parse_options.sh
-. subtools/path.sh
+. "${SUBTOOLS}"/parse_options.sh
+# . subtools/path.sh
 
-if [[ $# != 3 ]];then
-echo "[exit] Num of parameters is not equal to 3"
-echo "$0 [--exclude false|true] [--f 1] <in-vector-scp> <id-list> <out-vector-dir>"
-exit 1
+if [[ $# != 3 ]]; then
+  echo "[exit] Num of parameters is not equal to 3"
+  echo "$0 [--exclude false|true] [--f 1] <in-vector-scp> <id-list> <out-vector-dir>"
+  exit 1
 fi
 
 inscp=$1
@@ -29,11 +29,11 @@ exclude_string=""
 [[ "$exclude" == "true" ]] && exclude_string="--exclude"
 
 name=`basename ${inscp%.*}`
-if [ "$share" == "true" ];then
-run.pl $outdir/log/filter.log \
-  awk -v f=$f '{print $f}' $idlist \| subtools/kaldi/utils/filter_scp.pl $exclude_string - $inscp \> $outdir/$name.scp
+if [ "$share" == "true" ]; then
+  run.pl $outdir/log/filter.log \
+    awk -v f=$f '{print $f}' $idlist \| ${SUBTOOLS}/kaldi/utils/filter_scp.pl $exclude_string - $inscp \> $outdir/$name.scp
 else
-run.pl $outdir/log/filter.log \
-  awk -v f=$f '{print $f}' $idlist \| subtools/kaldi/utils/filter_scp.pl $exclude_string - $inscp \| copy-vector scp:- ark,scp:$outdir/$name.ark,$outdir/$name.scp
+  run.pl $outdir/log/filter.log \
+    awk -v f=$f '{print $f}' $idlist \| ${SUBTOOLS}/kaldi/utils/filter_scp.pl $exclude_string - $inscp \| copy-vector scp:- ark,scp:$outdir/$name.ark,$outdir/$name.scp
 fi
 echo "Filter $outdir done."

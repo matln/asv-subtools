@@ -12,7 +12,7 @@ import torch.nn as nn
 def conv3x3(in_planes, out_planes, Conv=nn.Conv2d, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
     return Conv(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=dilation, groups=groups, bias=False, dilation=dilation)
+                padding=dilation, groups=groups, bias=False, dilation=dilation)
 
 
 def conv1x1(in_planes, out_planes, Conv=nn.Conv2d, stride=1):
@@ -115,15 +115,17 @@ class Bottleneck(nn.Module):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         width = int(planes * (base_width / 64.)) * groups
-        
+
         self.downsample = downsample
         self.stride = stride
         self.full_pre_activation = full_pre_activation
 
         if self.full_pre_activation:
-            self._full_pre_activation(inplanes, planes, Conv, groups, width, stride, norm_layer, norm_layer_params, dilation)
+            self._full_pre_activation(inplanes, planes, Conv, groups, width, stride, norm_layer,
+                                      norm_layer_params, dilation)
         else:
-            self._original(inplanes, planes, Conv, groups, width, stride, norm_layer, norm_layer_params, dilation)
+            self._original(inplanes, planes, Conv, groups, width, stride, norm_layer,
+                           norm_layer_params, dilation)
 
     def _original(self, inplanes, planes, Conv, groups, width, stride, norm_layer, norm_layer_params, dilation):
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
@@ -200,20 +202,20 @@ class Bottleneck(nn.Module):
             return self._original_forward(x)
 
 
-
 class ResNet(nn.Module):
     """Just return a structure (preconv + resnet) without avgpool and final linear.
     """
-    def __init__(self, head_inplanes, block="BasicBlock", layers=[3, 4, 6, 3], planes=[32, 64, 128, 256], convXd=2, 
-                 full_pre_activation=True,
-                 head_conv=True, head_conv_params={"kernel_size":3, "stride":1, "padding":1},
-                 head_maxpool=True, head_maxpool_params={"kernel_size":3, "stride":1, "padding":1},
+
+    def __init__(self, head_inplanes, block="BasicBlock", layers=[3, 4, 6, 3], planes=[32, 64, 128, 256], convXd=2,
+                 full_pre_activation=True, head_conv=True, head_conv_params={"kernel_size": 3, "stride": 1, "padding": 1},
+                 head_maxpool=True, head_maxpool_params={"kernel_size": 3, "stride": 1, "padding": 1},
                  zero_init_residual=False, groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None, norm_layer_params={}):
         super(ResNet, self).__init__()
 
         if convXd != 1 and convXd != 2:
-            raise TypeError("Expected 1d or 2d conv, but got {}.".format(convXd))
+            raise TypeError(
+                "Expected 1d or 2d conv, but got {}.".format(convXd))
 
         if norm_layer is None:
             if convXd == 2:
@@ -224,12 +226,12 @@ class ResNet(nn.Module):
         self._norm_layer = norm_layer
 
         self.inplanes = planes[0]
-        if not head_conv and self.in_planes != head_inplanes:
-            raise ValueError("The inplanes is not equal to resnet first block" \
+        if not head_conv and self.inplanes != head_inplanes:
+            raise ValueError("The inplanes is not equal to resnet first block"
                              "inplanes without head conv({} vs. {}).".format(head_inplanes, self.inplanes))
         self.dilation = 1
         if replace_stride_with_dilation is None:
-            # each element in the tuple indicates if we should replace
+            # each element in the tuple indicates whether we should replace
             # the 2x2 stride with a dilated convolution instead
             replace_stride_with_dilation = [False, False, False]
         if len(replace_stride_with_dilation) != 3:
@@ -242,7 +244,7 @@ class ResNet(nn.Module):
             used_block = Bottleneck
         else:
             raise TypeError("Do not support {} block.".format(block))
-    
+
         self.groups = groups
         self.base_width = width_per_group
         self.head_conv = head_conv
@@ -283,12 +285,13 @@ class ResNet(nn.Module):
         if "affine" in norm_layer_params.keys():
             norm_layer_affine = norm_layer_params["affine"]
         else:
-            norm_layer_affine = True # torch.nn default it True
+            norm_layer_affine = True  # torch.nn default it True
 
         for m in self.modules():
             if isinstance(m, self.Conv):
                 torch.nn.init.normal_(m.weight, 0., 0.01)
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(
+                    m.weight, mode='fan_out', nonlinearity='relu')
             elif isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d, nn.GroupNorm)) and norm_layer_affine:
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -319,12 +322,11 @@ class ResNet(nn.Module):
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
                 conv1x1(self.inplanes, planes * block.expansion, self.Conv, stride),
-                norm_layer(planes * block.expansion, **self.norm_layer_params),
-            )
+                norm_layer(planes * block.expansion, **self.norm_layer_params))
 
         layers = []
         layers.append(block(self.inplanes, planes, self.Conv, stride, downsample, self.groups,
-                            self.base_width, previous_dilation, norm_layer, 
+                            self.base_width, previous_dilation, norm_layer,
                             norm_layer_params=self.norm_layer_params,
                             full_pre_activation=self.full_pre_activation))
         self.inplanes = planes * block.expansion
@@ -342,7 +344,7 @@ class ResNet(nn.Module):
             x = self.conv1(x)
             x = self.bn1(x)
             x = self.relu(x)
-        
+
         if self.head_maxpool:
             x = self.maxpool(x)
 
@@ -353,5 +355,5 @@ class ResNet(nn.Module):
 
         return x
 
-    def forward(self, x): 
+    def forward(self, x):
         return self._forward_impl(x)

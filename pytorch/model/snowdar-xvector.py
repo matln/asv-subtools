@@ -2,18 +2,26 @@
 
 # Copyright xmuspeech (Author: Snowdar 2020-02-05)
 
+import os, sys
 import math
 import torch
 import torch.nn.functional as F
-import libs.support.utils as utils
+
+# subtools = '/data/lijianchen/workspace/sre/subtools'
+subtools = os.getenv('SUBTOOLS')
+sys.path.insert(0, '{}/pytorch'.format(subtools))
 
 from libs.nnet import *
+import libs.support.utils as utils
+
 
 class Xvector(TopVirtualNnet):
-    """ A composite x-vector framework """
-    
-    ## Base parameters - components - loss - training strategy.
-    def init(self, inputs_dim, num_targets, extend=False, skip_connection=False, 
+    """ A composite x-vector framework
+    在 extended-xvector 基础上多了 SEBlock、mixup、specaugment 等等
+    """
+
+    # Base parameters - components - loss - training strategy.
+    def init(self, inputs_dim, num_targets, extend=False, skip_connection=False,
              mixup=False, mixup_alpha=1.0,
              specaugment=False, specaugment_params={},
              aug_dropout=0., context_dropout=0., hidden_dropout=0., dropout_params={},
@@ -26,50 +34,50 @@ class Xvector(TopVirtualNnet):
              transfer_from="softmax_loss",
              training=True, extracted_embedding="far"):
 
-        ## Params.
+        # Params.
         default_dropout_params = {
-            "type":"default", # default | random
-            "start_p":0.,
-            "dim":2,
-            "method":"uniform", # uniform | normals
-            "continuous":False,
-            "inplace":True
+            "type": "default",  # default | random
+            "start_p": 0.,
+            "dim": 2,
+            "method": "uniform",  # uniform | normals
+            "continuous": False,
+            "inplace": True
         }
 
         default_tdnn_layer_params = {
-            "nonlinearity":'relu', "nonlinearity_params":{"inplace":True},
-            "bn-relu":False, "bn":True, "bn_params":{"momentum":0.5, "affine":False, "track_running_stats":True}
+            "nonlinearity": 'relu', "nonlinearity_params": {"inplace": True},
+            "bn-relu": False, "bn": True, "bn_params": {"momentum": 0.5, "affine": False, "track_running_stats": True}
         }
 
         default_pooling_params = {
-            "num_nodes":1500,
-            "num_head":1,
-            "share":True,
-            "affine_layers":1,
-            "hidden_size":64,
-            "context":[0],
-            "stddev":True,
-            "temperature":False, 
-            "fixed":True,
-            "stddev":True
+            "num_nodes": 1500,
+            "num_head": 1,
+            "share": True,
+            "affine_layers": 1,
+            "hidden_size": 64,
+            "context": [0],
+            "stddev": True,
+            "temperature": False,
+            "fixed": True,
+            "stddev": True
         }
 
         default_margin_loss_params = {
-            "method":"am", "m":0.2, 
-            "feature_normalize":True, "s":30, 
-            "double":False,
-            "mhe_loss":False, "mhe_w":0.01,
-            "inter_loss":0.,
-            "ring_loss":0.,
-            "curricular":False
+            "method": "am", "m": 0.2,
+            "feature_normalize": True, "s": 30,
+            "double": False,
+            "mhe_loss": False, "mhe_w": 0.01,
+            "inter_loss": 0.,
+            "ring_loss": 0.,
+            "curricular": False
         }
 
         default_step_params = {
-            "T":None,
-            "m":False, "lambda_0":0, "lambda_b":1000, "alpha":5, "gamma":1e-4,
-            "s":False, "s_tuple":(30, 12), "s_list":None,
-            "t":False, "t_tuple":(0.5, 1.2), 
-            "p":False, "p_tuple":(0.5, 0.1)
+            "T": None,
+            "m": False, "lambda_0": 0, "lambda_b": 1000, "alpha": 5, "gamma": 1e-4,
+            "s": False, "s_tuple": (30, 12), "s_list": None,
+            "t": False, "t_tuple": (0.5, 1.2),
+            "p": False, "p_tuple": (0.5, 0.1)
         }
 
         dropout_params = utils.assign_params_dict(default_dropout_params, dropout_params)
@@ -80,14 +88,14 @@ class Xvector(TopVirtualNnet):
         margin_loss_params = utils.assign_params_dict(default_margin_loss_params, margin_loss_params)
         step_params = utils.assign_params_dict(default_step_params, step_params)
 
-        ## Var.
+        # Var.
         self.skip_connection = skip_connection
         self.use_step = use_step
         self.step_params = step_params
 
-        self.extracted_embedding = extracted_embedding # For extract.
-        
-        ## Nnet.
+        self.extracted_embedding = extracted_embedding  # For extract.
+
+        # Nnet.
         # Head
         self.mixup = Mixup(alpha=mixup_alpha) if mixup else None
         self.specaugment = SpecAugment(**specaugment_params) if specaugment else None
@@ -96,19 +104,19 @@ class Xvector(TopVirtualNnet):
         self.hidden_dropout = get_dropout_from_wrapper(hidden_dropout, dropout_params)
 
         # Frame level
-        self.tdnn1 = ReluBatchNormTdnnLayer(inputs_dim,512,[-2,-1,0,1,2], **tdnn_layer_params)
+        self.tdnn1 = ReluBatchNormTdnnLayer(inputs_dim, 512, [-2, -1, 0, 1, 2], **tdnn_layer_params)
         self.se1 = SEBlock(512, ratio=se_ratio) if SE else None
-        self.ex_tdnn1 = ReluBatchNormTdnnLayer(512,512, **tdnn_layer_params) if extend else None
-        self.tdnn2 = ReluBatchNormTdnnLayer(512,512,[-2,0,2], **tdnn_layer_params)
+        self.ex_tdnn1 = ReluBatchNormTdnnLayer(512, 512, **tdnn_layer_params) if extend else None
+        self.tdnn2 = ReluBatchNormTdnnLayer(512, 512, [-2, 0, 2], **tdnn_layer_params)
         self.se2 = SEBlock(512, ratio=se_ratio) if SE else None
-        self.ex_tdnn2 = ReluBatchNormTdnnLayer(512,512, **tdnn_layer_params) if extend else None
-        self.tdnn3 = ReluBatchNormTdnnLayer(512,512,[-3,0,3], **tdnn_layer_params)
+        self.ex_tdnn2 = ReluBatchNormTdnnLayer(512, 512, **tdnn_layer_params) if extend else None
+        self.tdnn3 = ReluBatchNormTdnnLayer(512, 512, [-3, 0, 3], **tdnn_layer_params)
         self.se3 = SEBlock(512, ratio=se_ratio) if SE else None
-        self.ex_tdnn3 = ReluBatchNormTdnnLayer(512,512, **tdnn_layer_params) if extend else None
-        self.ex_tdnn4 = ReluBatchNormTdnnLayer(512,512,[-4,0,4], **tdnn_layer_params) if extend else None
+        self.ex_tdnn3 = ReluBatchNormTdnnLayer(512, 512, **tdnn_layer_params) if extend else None
+        self.ex_tdnn4 = ReluBatchNormTdnnLayer(512, 512, [-4, 0, 4], **tdnn_layer_params) if extend else None
         self.se4 = SEBlock(512, ratio=se_ratio) if SE and extend else None
-        self.ex_tdnn5 = ReluBatchNormTdnnLayer(512,512, **tdnn_layer_params) if extend else None
-        self.tdnn4 = ReluBatchNormTdnnLayer(512,512, **tdnn_layer_params)
+        self.ex_tdnn5 = ReluBatchNormTdnnLayer(512, 512, **tdnn_layer_params) if extend else None
+        self.tdnn4 = ReluBatchNormTdnnLayer(512, 512, **tdnn_layer_params)
 
         num_nodes = pooling_params.pop("num_nodes")
 
@@ -119,8 +127,8 @@ class Xvector(TopVirtualNnet):
         if pooling == "lde":
             self.stats = LDEPooling(num_nodes, c_num=pooling_params["num_head"])
         elif pooling == "attentive":
-            self.stats = AttentiveStatisticsPooling(num_nodes, affine_layers=pooling_params["affine_layers"], 
-                                                    hidden_size=pooling_params["hidden_size"], 
+            self.stats = AttentiveStatisticsPooling(num_nodes, affine_layers=pooling_params["affine_layers"],
+                                                    hidden_size=pooling_params["hidden_size"],
                                                     context=pooling_params["context"], stddev=stddev)
         elif pooling == "multi-head":
             self.stats = MultiHeadAttentionPooling(num_nodes, stddev=stddev, **pooling_params)
@@ -142,11 +150,11 @@ class Xvector(TopVirtualNnet):
         if tdnn7_params["nonlinearity"] == "default":
             tdnn7_params["nonlinearity"] = tdnn_layer_params["nonlinearity"]
 
-        self.tdnn7 = ReluBatchNormTdnnLayer(tdnn7_dim,512, **tdnn7_params)
+        self.tdnn7 = ReluBatchNormTdnnLayer(tdnn7_dim, 512, **tdnn7_params)
 
         # Loss
         # Do not need when extracting embedding.
-        if training :
+        if training:
             if margin_loss:
                 self.loss = MarginSoftmaxLoss(512, num_targets, **margin_loss_params)
             else:
@@ -155,13 +163,13 @@ class Xvector(TopVirtualNnet):
             self.wrapper_loss = MixupLoss(self.loss, self.mixup) if mixup else None
 
             # An example to using transform-learning without initializing loss.affine parameters
-            self.transform_keys = ["tdnn1","tdnn2","tdnn3","tdnn4","tdnn5","stats","tdnn6","tdnn7",
-                                   "ex_tdnn1","ex_tdnn2","ex_tdnn3","ex_tdnn4","ex_tdnn5",
-                                   "se1","se2","se3","se4","loss"]
+            self.transform_keys = ["tdnn1", "tdnn2", "tdnn3", "tdnn4", "tdnn5", "stats", "tdnn6", "tdnn7",
+                                   "ex_tdnn1", "ex_tdnn2", "ex_tdnn3", "ex_tdnn4", "ex_tdnn5",
+                                   "se1", "se2", "se3", "se4", "loss"]
 
             if margin_loss and transfer_from == "softmax_loss":
                 # For softmax_loss to am_softmax_loss
-                self.rename_transform_keys = {"loss.affine.weight":"loss.weight"} 
+                self.rename_transform_keys = {"loss.affine.weight": "loss.weight"}
 
     @utils.for_device_free
     def forward(self, inputs):
@@ -256,7 +264,7 @@ class Xvector(TopVirtualNnet):
         x = self.tdnn5(x)
         x = self.stats(x)
 
-        if self.extracted_embedding == "far" :
+        if self.extracted_embedding == "far":
             assert self.tdnn6 is not None
             xvector = self.tdnn6.affine(x)
         elif self.extracted_embedding == "near":
@@ -273,16 +281,16 @@ class Xvector(TopVirtualNnet):
 
     def compute_decay_value(self, start, end, T_cur, T_i):
         # Linear decay in every cycle time.
-        return start - (start - end)/(T_i-1) * (T_cur%T_i)
+        return start - (start - end)/(T_i-1) * (T_cur % T_i)
 
     def step(self, epoch, this_iter, epoch_batchs):
         # Heated up for t and s.
         # Decay for margin and dropout p.
         if self.use_step:
             if self.step_params["m"]:
-                current_postion = epoch*epoch_batchs + this_iter
-                lambda_factor = max(self.step_params["lambda_0"], 
-                                 self.step_params["lambda_b"]*(1+self.step_params["gamma"]*current_postion)**(-self.step_params["alpha"]))
+                current_postion = epoch * epoch_batchs + this_iter
+                lambda_factor = max(self.step_params["lambda_0"],
+                                    self.step_params["lambda_b"]*(1+self.step_params["gamma"]*current_postion)**(-self.step_params["alpha"]))
                 self.loss.step(lambda_factor)
 
             if self.step_params["T"] is not None and (self.step_params["t"] or self.step_params["p"]):
@@ -298,6 +306,3 @@ class Xvector(TopVirtualNnet):
 
             if self.step_params["s"]:
                 self.loss.s = self.step_params["s_tuple"][self.step_params["s_list"][epoch]]
-
-
-

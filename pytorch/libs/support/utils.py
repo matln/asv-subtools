@@ -64,8 +64,7 @@ def select_model_device(model, use_gpu, gpu_id="", benchmark=False):
         torch.backends.cudnn.benchmark = benchmark
 
         if gpu_id == "":
-            logger.info(
-                "The use_gpu is true and gpu id is not specified, so select gpu device automatically.")
+            logger.info("The use_gpu is true and gpu id is not specified, so select gpu device automatically.")
             import libs.support.GPU_Manager as gpu
             gm = gpu.GPUManager()
             gpu_id = [gm.auto_choice()]
@@ -73,8 +72,7 @@ def select_model_device(model, use_gpu, gpu_id="", benchmark=False):
             # Get a gpu id list.
             gpu_id = parse_gpu_id_option(gpu_id)
             if is_main_training():
-                logger.info(
-                    "The use_gpu is true and training will use GPU {0}.".format(gpu_id))
+                logger.info("The use_gpu is true and training will use GPU {0}.".format(gpu_id))
 
         # Multi-GPU with DDP.
         if len(gpu_id) > 0 and use_ddp():
@@ -165,7 +163,8 @@ def for_device_free(function):
 
 
 def create_model_from_py(model_blueprint, model_creation=""):
-    """ Used in pipeline/train.py and pipeline/onestep/extract_emdeddings.py and it makes config of nnet
+    """
+    Used in pipeline/train.py and pipeline/onestep/extract_emdeddings.py and it makes config of nnet
     more free with no-change of training and other common scripts.
 
     @model_blueprint: string type, a *.py file path which includes the instance of nnet, such as examples/xvector.py
@@ -192,14 +191,14 @@ def create_model_from_py(model_blueprint, model_creation=""):
 def write_nnet_config(model_blueprint: str, model_creation: str, nnet_config: str):
     dataframe = pd.DataFrame([model_blueprint, model_creation], index=[
                              "model_blueprint", "model_creation"])
-    dataframe.to_csv(nnet_config, header=None, sep=";")
+    dataframe.to_csv(nnet_config, header=None, sep="\t")
     logger.info("Save nnet_config to {0} done.".format(nnet_config))
 
 
 def read_nnet_config(nnet_config: str):
     logger.info("Read nnet_config from {0}".format(nnet_config))
     # Use ; sep to avoid some problem in spliting.
-    dataframe = pd.read_csv(nnet_config, header=None, index_col=0, sep=";")
+    dataframe = pd.read_csv(nnet_config, header=None, index_col=0, sep="\t")
     model_blueprint = dataframe.loc["model_blueprint", 1]
     model_creation = dataframe.loc["model_creation", 1]
 
@@ -210,8 +209,7 @@ def create_model_dir(model_dir: str, model_blueprint: str, stage=-1):
     # Just change the path of blueprint so that use the copy of blueprint which is in the config directory and it could
     # avoid unkonw influence from the original blueprint which could be changed possibly before some processes needing
     # this blueprint, such as pipeline/onestep/extracting_embedings.py
-    config_model_blueprint = "{0}/config/{1}".format(
-        model_dir, os.path.basename(model_blueprint))
+    config_model_blueprint = "{0}/config/{1}".format(model_dir, os.path.basename(model_blueprint))
 
     if not os.path.exists("{0}/log".format(model_dir)):
         os.makedirs("{0}/log".format(model_dir), exist_ok=True)
@@ -497,3 +495,7 @@ def get_free_port(ip="127.0.0.1"):
         # Set port as 0, socket will auto-select a free port. And then fetch this port.
         s.bind((ip, 0))
         return s.getsockname()[1]
+
+
+if __name__ == '__main__':
+    write_nnet_config("11.............111111111111111111", "222222222222222222.212412", '/home/lijianchen/workspace/sre/voxceleb/tmp/nnet.config')

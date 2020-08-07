@@ -22,19 +22,19 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 ## Wrapper ✿
-def get_optimizer(model, params:dict={}):
-    # Suggested weight_decay: 1e-4 for l2 regularization (sgd, adam) and 
+def get_optimizer(model, params: dict = {}):
+    # Suggested weight_decay: 1e-4 for l2 regularization (sgd, adam) and
     #                         1e-1 for decouped weight decay (sgdw, adamw, radam, ralamb, adamod etc.)
     default_params = {
-        "name":"adamW",
-        "learn_rate":0.001,
-        "beta1":0.9,
-        "beta2":0.999,
-        "beta3":0.999,
-        "weight_decay":1e-4,
-        "lookahead.k":5,
-        "lookahead.alpha":0.,
-        "gc":False
+        "name": "adamW",
+        "learn_rate": 0.001,
+        "beta1": 0.9,
+        "beta2": 0.999,
+        "beta3": 0.999,
+        "weight_decay": 1e-4,
+        "lookahead.k": 5,
+        "lookahead.alpha": 0.,
+        "gc": False
     }
 
     used_params = utils.assign_params_dict(default_params, params)
@@ -50,9 +50,9 @@ def get_optimizer(model, params:dict={}):
 
     extra_params = {}
 
-    # Gradient centralization: 
-    # Yong, H., Huang, J., Hua, X., & Zhang, L. (2020). Gradient Centralization: 
-    #     A New Optimization Technique for Deep Neural Networks. arXiv e-prints, arXiv:2004.01461. 
+    # Gradient centralization:
+    # Yong, H., Huang, J., Hua, X., & Zhang, L. (2020). Gradient Centralization:
+    #     A New Optimization Technique for Deep Neural Networks. arXiv e-prints, arXiv:2004.01461.
     #     Retrieved from https://ui.adsabs.harvard.edu/abs/2020arXiv200401461Y
     # Github: https://github.com/Yonghongwei/Gradient-Centralization
     if gc:
@@ -66,21 +66,29 @@ def get_optimizer(model, params:dict={}):
 
     # Select optimizer
     if name == "sgd":
-        base_optimizer = optim.SGD(model.parameters(), lr=learn_rate, momentum=beta1, weight_decay=weight_decay)
+        base_optimizer = optim.SGD(model.parameters(), lr=learn_rate, momentum=beta1,
+                                   weight_decay=weight_decay)
     elif name == "sgdW":
-        base_optimizer = SGDW(model.parameters(), lr=learn_rate, momentum=beta1, weight_decay=weight_decay)
+        base_optimizer = SGDW(model.parameters(), lr=learn_rate, momentum=beta1,
+                              weight_decay=weight_decay)
     elif name == "adam":
-        base_optimizer = optim.Adam(model.parameters(), lr=learn_rate, betas=(beta1, beta2), weight_decay=weight_decay)
+        base_optimizer = optim.Adam(model.parameters(), lr=learn_rate, betas=(beta1, beta2),
+                                    weight_decay=weight_decay)
     elif name == "adamW":
-        base_optimizer = AdamW(model.parameters(), lr=learn_rate, betas=(beta1, beta2), weight_decay=weight_decay, **extra_params)
+        base_optimizer = AdamW(model.parameters(), lr=learn_rate, betas=(beta1, beta2),
+                               weight_decay=weight_decay, **extra_params)
     elif name == "radam":
-        base_optimizer = RAdam(model.parameters(), lr=learn_rate, betas=(beta1, beta2), weight_decay=weight_decay)
+        base_optimizer = RAdam(model.parameters(), lr=learn_rate, betas=(beta1, beta2),
+                               weight_decay=weight_decay)
     elif name == "ralamb":
-        base_optimizer = Ralamb(model.parameters(), lr=learn_rate, betas=(beta1, beta2), weight_decay=weight_decay, **extra_params)
+        base_optimizer = Ralamb(model.parameters(), lr=learn_rate, betas=(beta1, beta2),
+                                weight_decay=weight_decay, **extra_params)
     elif name == "adamod":
-        base_optimizer = AdaMod(model.parameters(), lr=learn_rate, betas=(beta1, beta2), beta3=beta3, weight_decay=weight_decay)
+        base_optimizer = AdaMod(model.parameters(), lr=learn_rate, betas=(beta1, beta2),
+                                beta3=beta3, weight_decay=weight_decay)
     elif name == "novograd":
-        base_optimizer = Novograd(model.parameters(), lr=learn_rate, betas=(beta1, beta2), weight_decay=weight_decay)
+        base_optimizer = Novograd(model.parameters(), lr=learn_rate, betas=(beta1, beta2),
+                                  weight_decay=weight_decay)
     else:
         raise ValueError("Do not support {0} optimizer now.".format(name))
 

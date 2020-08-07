@@ -17,8 +17,8 @@ cmn_window=300
 
 echo "$0 $@"  # Print the command line for logging
 
-if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
-. parse_options.sh || exit 1;
+# if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
+. ${SUBTOOLS}/parse_options.sh || exit 1;
 if [ $# != 3 ]; then
   echo "Usage: $0 <in-data-dir> <out-data-dir> <feat-dir>"
   echo "e.g.: $0 data/train data/train_no_sil exp/make_xvector_features"
@@ -42,7 +42,7 @@ done
 # Set various variables.
 mkdir -p $dir/log
 mkdir -p $data_out
-featdir=$(subtools/kaldi/utils/make_absolute.sh $dir)
+featdir=$(${SUBTOOLS}/kaldi/utils/make_absolute.sh $dir)
 
 #if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $featdir/storage ]; then
 #  subtools/kaldi/utils/create_split_dir.pl \
@@ -52,7 +52,7 @@ featdir=$(subtools/kaldi/utils/make_absolute.sh $dir)
 for n in $(seq $nj); do
   # the next command does nothing unless $featdir/storage/ exists, see
   # subtools/kaldi/utils/create_data_link.pl for more info.
-  subtools/kaldi/utils/create_data_link.pl $featdir/xvector_feats_${name}.${n}.ark
+  ${SUBTOOLS}/kaldi/utils/create_data_link.pl $featdir/xvector_feats_${name}.${n}.ark
 done
 
 cp $data_in/utt2spk $data_out/utt2spk
@@ -62,7 +62,7 @@ cp $data_in/wav.scp $data_out/wav.scp
 write_num_frames_opt="--write-num-frames=ark,t:$featdir/log/utt2num_frames.JOB"
 
 sdata_in=$data_in/split${nj}utt;
-subtools/kaldi/utils/split_data.sh --per-utt $data_in $nj || exit 1;
+${SUBTOOLS}/kaldi/utils/split_data.sh --per-utt $data_in $nj || exit 1;
 
 
 if [ "$cmn" == "true" ];then
@@ -89,7 +89,7 @@ for n in $(seq $nj); do
 done > $data_out/utt2num_frames || exit 1
 rm $featdir/log/utt2num_frames.*
 
-subtools/kaldi/utils/fix_data_dir.sh $data_out
+${SUBTOOLS}/kaldi/utils/fix_data_dir.sh $data_out
 rm -rf $data_out/.backup
 
 echo "$0: Succeeded creating xvector features for $name"

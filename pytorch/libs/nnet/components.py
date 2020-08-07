@@ -22,7 +22,7 @@ class TdnnAffine(torch.nn.Module):
     @output_dim: number of layer nodes <=> outputs channels of conv
     @context: a list of context
         e.g.  [-2,0,2]
-    If context is [0], then the TdnnAffine is equal to linear layer (???????????????).
+    If context is [0], then the TdnnAffine is equal to linear layer (**for 1 frame**).
     """
 
     def __init__(self, input_dim, output_dim, context=[0], bias=True, stride=1, pad=True, groups=1, norm_w=False, norm_f=False):
@@ -92,7 +92,7 @@ class TdnnAffine(torch.nn.Module):
 
         self.selected_device = False
 
-    # kaiming_uniform_ ???
+    # special init 在313行
     def init_weight(self):
         # Note, var should be small to avoid slow-shrinking
         torch.nn.init.normal_(self.weight, 1., 0.01)
@@ -372,8 +372,7 @@ class ReluBatchNormTdnnLayer(_BaseActivationBatchNorm):
         #          (activation): ReLU()
         #          (batchnorm): BatchNorm1d(512, eps=1e-05, momentum=0.5, affine=False, track_running_stats=True)
         if affine_type == "tdnn":
-            self.affine = TdnnAffine(
-                input_dim, output_dim, context=context, **affine_options)
+            self.affine = TdnnAffine(input_dim, output_dim, context=context, **affine_options)
         else:
             self.affine = ChunkSeparationAffine(
                 input_dim, output_dim, context=context, **affine_options)
@@ -494,7 +493,7 @@ class AdaptivePCMN(torch.nn.Module):
 
 
 class SEBlock(torch.nn.Module):
-    """ A SE Block layer layer which can learn to use global information to selectively emphasise informative 
+    """ A SE Block layer which can learn to use global information to selectively emphasise informative 
     features and suppress less useful ones.
     This is a pytorch implementation of SE Block based on the paper:
     Squeeze-and-Excitation Networks

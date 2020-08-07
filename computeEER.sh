@@ -6,13 +6,13 @@ write_file=""
 first=3 # <target/nontarget-field 1-based>
 second=3 # <score-field 1-based>
 
-. subtools/path.sh
-. subtools/parse_options.sh
+# . subtools/path.sh
+. ${SUBTOOLS}/parse_options.sh
 
-if [[ $# != 2 ]];then
-echo "[exit] Num of parameters is not equal to 4"
-echo "usage:$0 [--write-file \"\" | filepath] <trials> <score-file>"
-exit 1
+if [[ $# != 2 ]]; then
+  echo "[exit] Num of parameters is not equal to 4"
+  echo "usage:$0 [--write-file \"\" | filepath] <trials> <score-file>"
+  exit 1
 fi
 
 trials=$1
