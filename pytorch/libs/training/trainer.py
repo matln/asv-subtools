@@ -201,18 +201,16 @@ class SimpleTrainer(_BaseTrainer):
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), self.params["max_change"])
 
             if math.isnan(grad_norm):
-<<<<<<< HEAD
-                raise RuntimeError('There is nan problem in iter/epoch: {0}/{1}'.format(
-                    self.training_point[1] + 1, self.training_point[0] + 1))
-=======
                 if self.params["nan_debug"]:
                     raise RuntimeError("[NOT OK] Nan is still found in this debug.")
                 torch.save(inputs.cpu(), "{0}/nan.batch".format(self.params["model_dir"]))
                 torch.save(targets.cpu(), "{0}/nan.targets".format(self.params["model_dir"]))
                 torch.save(self.elements["model"].state_dict(), "{0}/nan.params".format(self.params["model_dir"]))
-                raise RuntimeError('There is Nan problem in iter/epoch: {0}/{1} (nan batch and params are saved in {2})'.format(self.training_point[1]+1, 
-                self.training_point[0]+1, "{0}/nan.*".format(self.params["model_dir"])))
->>>>>>> a10cb414e3e55455798d915157d7904cc9977e4b
+                raise RuntimeError(
+                    'There is Nan problem in iter/epoch: {0}/{1} '
+                    '(nan batch and params are saved in {2})'.format(
+                        self.training_point[1] + 1, self.training_point[0] + 1,
+                        "{0}/nan.*".format(self.params["model_dir"])))
             else:
                 if self.params["nan_debug"]:
                     raise RuntimeError("[OK] There is no nan found for this debug.")
