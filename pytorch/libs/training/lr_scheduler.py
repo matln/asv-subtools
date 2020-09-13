@@ -36,8 +36,7 @@ class LRSchedulerWrapper():
             "reduceP.min_lr": 0.
         }
 
-        used_params = utils.assign_params_dict(
-            default_params, params, force_check=False, support_unknow=True)
+        used_params = utils.assign_params_dict(default_params, params, force_check=False, support_unknow=True)
         split_params = utils.split_params(used_params)
 
         if isinstance(optimizer, Lookahead):
@@ -50,6 +49,7 @@ class LRSchedulerWrapper():
             # To do.
             self.lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(base_optimizer, **split_params["1cycle"])
         elif self.name == "warmR":
+            # cosine annealing 的初始周期
             T_max = split_params["warmR"].pop("T_max")
             self.lr_decay_step = split_params["warmR"].pop("lr_decay_step")
             self.lr_scheduler = CosineAnnealingWarmRestarts(
@@ -100,8 +100,7 @@ class LRSchedulerWrapper():
                     # In this case, we do not compute valid set for all processes but just computing it in main process
                     # and broadcast the metrics to other processes.
                     if not self.init:
-                        device = utils.get_device_from_optimizer(
-                            self.lr_scheduler.optimizer)
+                        device = utils.get_device_from_optimizer(self.lr_scheduler.optimizer)
                         # Create a must tentor to prepare to broadcast with torch.distributed.broadcast fuction.
                         self.broadcast_metric = torch.randn(2, device=device)
                         # New a group to broadcast the special metric tensor. It is important.
@@ -143,7 +142,7 @@ class CosineAnnealingWarmRestarts(_LRScheduler):
 
     Args:
         optimizer (Optimizer): Wrapped optimizer.
-        T_0 (int): Number of iterations for the first restart.
+        T_0 (int, T_max): Number of iterations for the first restart.
         T_mult (int, optional): A factor increases :math:`T_{i}` after a restart. Default: 1.
         eta_min (float, optional): Minimum learning rate. Default: 0.
         last_epoch (int, optional): The index of last epoch. Default: -1.
@@ -152,24 +151,26 @@ class CosineAnnealingWarmRestarts(_LRScheduler):
         https://arxiv.org/abs/1608.03983
 
     Base lr decay has been added. [Snowdar 2019-08-29]
+        factor: lr decay factor. Adjusting (e.g., decreasing) eta_min and eta_max at every i-th
+            restart (see also Smith (2016)) could potentially improve performance (
+            Fixing Weight Decay Regularization in Adam. chapter 4)
+        log_decay: if False, then will be exponential decay
     """
 
     def __init__(self, optimizer, T_0, T_mult=1, eta_min=0, factor=1.0, log_decay=False, last_epoch=-1):
         if T_0 <= 0 or not isinstance(T_0, int):
-            raise ValueError(
-                "Expected positive integer T_0, but got {}".format(T_0))
+            raise ValueError("Expected positive integer T_0, but got {}".format(T_0))
         if T_mult <= 0:  # or not isinstance(T_mult, int):
             raise ValueError("Expected T_mult > 0, but got {}".format(T_mult))
         self.T_0 = T_0
-        self.T_i = T_0
+        self.T_i = T_0  # num of epoch for i-th warm restart
         self.T_mult = T_mult
         self.eta_min = eta_min
         self.factor = factor
         self.this_factor = 1
         self.T_cur = last_epoch
         self.log_decay = log_decay
-        super(CosineAnnealingWarmRestarts, self).__init__(
-            optimizer, last_epoch)
+        super(CosineAnnealingWarmRestarts, self).__init__(optimizer, last_epoch)
 
     def get_lr(self):
         if self.log_decay:
@@ -215,19 +216,24 @@ class CosineAnnealingWarmRestarts(_LRScheduler):
                 self.T_i = self.T_i * self.T_mult
         else:
             if epoch < 0:
-                raise ValueError(
-                    "Expected non-negative epoch, but got {}".format(epoch))
+                raise ValueError("Expected non-negative epoch, but got {}".format(epoch))
             if epoch >= self.T_0:
                 if self.T_mult == 1:
                     self.T_cur = epoch % self.T_0
+                    # exponential decay
                     self.this_factor = self.factor ** (epoch // self.T_0)
                 else:
-                    n = int(
-                        math.log(max(0.05, (epoch / self.T_0 * (self.T_mult - 1) + 1)), self.T_mult))
+                    # e.g. T_0=3, t_mult=2.
+                    # 每个T_i的周期数: 3, 3*2^1, 3*2^2, 3*2^3
+                    #                  3, 6, 12, 24 
+                    # 起始周期点:      3, 9, 21, 45 （等比数列前n项和公式：S_n=frac{a_1 (q^n -1)}{q-1}）
+                    # 则：n=\log_q (S_n (q-1) / a_1 + 1 )
+                    # 
+                    i = int(math.log(max(0.05, (epoch / self.T_0 * (self.T_mult - 1) + 1)), self.T_mult))
                     self.T_cur = epoch - self.T_0 * \
-                        (self.T_mult ** n - 1) / (self.T_mult - 1)
-                    self.T_i = self.T_0 * self.T_mult ** (n)
-                    self.this_factor = self.factor ** n
+                        (self.T_mult ** i - 1) / (self.T_mult - 1)
+                    self.T_i = self.T_0 * self.T_mult ** (i)
+                    self.this_factor = self.factor ** i
             else:
                 self.T_i = self.T_0
                 self.T_cur = epoch

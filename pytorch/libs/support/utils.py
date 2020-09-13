@@ -93,12 +93,16 @@ def select_model_device(model, use_gpu, gpu_id="", benchmark=False):
                 raise ValueError("To run horovod with {} nj, "
                                  "but {} GPU ids ({}) are given.".format(hvd.size(), len(gpu_id), gpu_id))
             torch.cuda.set_device(gpu_id[hvd.rank()])
+
+        # DataParallel
+        elif len(gpu_id) > 1:
+            os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, gpu_id))
+            model = torch.nn.DataParallel(model)  # Multiple GPUs
+            # model = convert_model(model)
         else:
             # One process in one GPU.
             torch.cuda.set_device(gpu_id[0])
-
         model.cuda()
-
     return model
 
 
@@ -131,17 +135,20 @@ def get_tensors(tensor_sets):
     such as transforming [(tensor1,tensor2),tensor3] to [tensor1,tensor2,tensor3]
     """
     tensors = []
+    other_param = []
 
     for this_object in tensor_sets:
         # Only tensor
         if isinstance(this_object, torch.Tensor):
             tensors.append(this_object)
-        if isinstance(this_object, np.ndarray):
+        elif isinstance(this_object, np.ndarray):
             tensors.append(torch.from_numpy(this_object))
         elif isinstance(this_object, list) or isinstance(this_object, tuple):
             tensors.extend(get_tensors(this_object))
+        else:
+            other_param.append(this_object)
 
-    return tensors
+    return tensors, other_param
 
 
 def for_device_free(function):
@@ -150,14 +157,19 @@ def for_device_free(function):
     Used in libs.nnet.framework.TopVirtualNnet
     """
 
-    def wrapper(self, *tensor_sets):
+    def wrapper(self, *param_sets):
         transformed = []
 
+        tensors, other_param = get_tensors(param_sets)
         # 申请实例后，self 会被替换成实例
-        for tensor in get_tensors(tensor_sets):
-            transformed.append(to_device(self, tensor))
+        for tensor in tensors:
+            if "CUDA_VISIBLE_DEVICES" in os.environ:
+                # DataParallel
+                transformed.append(tensor.cuda())
+            else:
+                transformed.append(to_device(self, tensor))
 
-        return function(self, *transformed)
+        return function(self, *transformed, *other_param)
 
     return wrapper
 
@@ -409,9 +421,12 @@ def init_multi_gpu_training(gpu_id="", solution="ddp", port=29500):
             init_horovod()
             if is_main_training():
                 logger.info("Horovod has been initialized.")
+        elif solution == "dp":
+            # logger.info("DP has been initialized.")
+            pass
         else:
             raise TypeError(
-                "Do not support {} solution for multi-GPU training.".format(method))
+                "Do not support {} solution for multi-GPU training.".format(solution))
 
 
 def convert_synchronized_batchnorm(model):

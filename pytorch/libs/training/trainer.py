@@ -60,7 +60,7 @@ class _BaseTrainer():
                           "start_epoch": 0, "epochs": 10, "use_gpu": True, "gpu_id": "",
                           "benchmark": True, "max_change": 10.0, "compute_accuracy": True,
                           "compute_valid_accuracy": True, "compute_one_batch_valid": True,
-                          "suffix": "params", "nan_debug": False, "use_tensorboard": True}
+                          "suffix": "params", "nan_debug": False, "use_tensorboard": False}
 
         elements, params = package
         self.elements = utils.assign_params_dict(default_elements, elements)
@@ -92,7 +92,6 @@ class _BaseTrainer():
         suffix = self.params["suffix"]
 
         if start_epoch <= 0 and utils.is_main_training():
-            # ???
             model_creation = model.get_model_creation()
             utils.write_nnet_config(model_blueprint, model_creation, "{0}/config/nnet.config".format(model_dir))
 
@@ -280,6 +279,8 @@ class SimpleTrainer(_BaseTrainer):
                 logger.info("Training will run for {0} epochs.".format(epochs))
 
             for this_epoch in range(start_epoch, epochs):
+                if isinstance(data.train_loader.sampler, torch.utils.data.distributed.DistributedSampler):
+                    data.train_loader.sampler.set_epoch(this_epoch)
                 for this_iter, batch in enumerate(data.train_loader, 0):
                     self.training_point = (this_epoch, this_iter, data.num_batch_train)  # It is important for reporter.
 
@@ -302,17 +303,17 @@ class SimpleTrainer(_BaseTrainer):
                             valid_loss, valid_acc = self.compute_validation(data.valid_loader)
 
                             # real_snapshot is set for tensorboard to avoid workspace problem
-                            real_snapshot = {"train_loss": loss, "valid_loss": valid_loss, 
-                                             "train_acc": acc*100, "valid_acc": valid_acc*100}
-                            snapshot = {"train_loss": "{0:.6f}".format(loss), "valid_loss": "{0:.6f}".format(valid_loss), 
-                                        "train_acc": "{0:.2f}".format(acc*100), "valid_acc": "{0:.2f}".format(valid_acc*100),
+                            real_snapshot = {"train_loss": loss, "valid_loss": valid_loss,
+                                             "train_acc": acc * 100, "valid_acc": valid_acc * 100}
+                            snapshot = {"train_loss": "{0:.6f}".format(loss), "valid_loss": "{0:.6f}".format(valid_loss),
+                                        "train_acc": "{0:.2f}".format(acc * 100), "valid_acc": "{0:.2f}".format(valid_acc * 100),
                                         "real": real_snapshot}
                             # For ReduceLROnPlateau.
                             lr_scheduler_params["valid_metric"] = (valid_loss, valid_acc)
                         else:
-                            real_snapshot = {"train_loss": loss, "train_acc": acc*100}
+                            real_snapshot = {"train_loss": loss, "train_acc": acc * 100}
                             snapshot = {"train_loss": "{0:.6f}".format(loss), "valid_loss": "",
-                                        "train_acc": "{0:.2f}".format(acc*100), "valid_acc": "",
+                                        "train_acc": "{0:.2f}".format(acc * 100), "valid_acc": "",
                                         "real": real_snapshot}
 
                     if lr_scheduler is not None:

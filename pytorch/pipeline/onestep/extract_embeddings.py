@@ -10,6 +10,7 @@ import torch
 
 subtools = os.getenv('SUBTOOLS')
 sys.path.insert(0, '{}/pytorch'.format(subtools))
+sys.path.insert(0, os.getenv('pwd'))
 
 import libs.support.kaldi_io as kaldi_io
 import libs.support.utils as utils

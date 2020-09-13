@@ -6,7 +6,7 @@ aug_suffixes="reverb noise music babble"
 nj=16
 outdir=features
 
-. ${SUBTOOLS}/parse_options.sh
+. "${SUBTOOLS}"/parse_options.sh
 
 if [[ $# != 2 && $# != 3 ]]; then
   echo "[exit] Num of parameters is not equal to 2 or 3"
@@ -30,34 +30,35 @@ if [ -n "$vad_conf" ]; then
   [ ! -f "$vad_conf" ] && echo "Expected vad conf to exist." && exit 1
   [ ! -f "$datadir/feats.scp" ] && echo "Expected $datadir/feats.scp to exist." && exit 1
 
-  ${SUBTOOLS}/filterDataDir.sh $datadir $clean_list $datadir/clean
+  "${SUBTOOLS}"/filterDataDir.sh "$datadir" "$clean_list" $datadir/clean
   # output: vad.scp
-  ${SUBTOOLS}/computeVad.sh --nj ${nj} \
+  "${SUBTOOLS}"/computeVad.sh \
+    --nj ${nj} \
     --outdir ${outdir} \
-    $datadir/clean $vad_conf
+    "$datadir"/clean "${vad_conf}"
 
   clean_vad=$datadir/clean/vad.scp
 else
   clean_vad=$clean_list
 fi
 
-cat $clean_vad > $datadir/aug.vad
-for aug_suffix in $aug_suffixes;do
-  awk -v suffix=$aug_suffix '{print $1"-"suffix, $2}' $clean_vad >> $datadir/aug.vad
+cat "$clean_vad" > "$datadir"/aug.vad
+for aug_suffix in $aug_suffixes; do
+  awk -v suffix="$aug_suffix" '{print $1"-"suffix, $2}' "$clean_vad" >> "$datadir"/aug.vad
 done
 
-:> $datadir/lost_clean_utts
-awk -v data=$datadir 'NR==FNR{a[$1]=$2}NR>FNR{if(!a[$1]){print $1 >> data"/lost_clean_utts"}else{print $1,a[$1]}}' \
-                     $datadir/aug.vad $datadir/utt2spk > $datadir/vad.scp
+:> "$datadir"/lost_clean_utts
+awk -v data="$datadir" 'NR==FNR{a[$1]=$2}NR>FNR{if(!a[$1]){print $1 >> data"/lost_clean_utts"}else{print $1,a[$1]}}' \
+                     "$datadir"/aug.vad "$datadir"/utt2spk > "$datadir"/vad.scp
 
-${SUBTOOLS}/kaldi/utils/fix_data_dir.sh $datadir
+"${SUBTOOLS}"/kaldi/utils/fix_data_dir.sh "$datadir"
 
-num=$(wc -l $datadir/lost_clean_utts | awk '{print $1}')
+num=$(wc -l "$datadir"/lost_clean_utts | awk '{print $1}')
 
-[ $num -gt 0 ] && echo "[exit] Could not find $num clean items for augmented utts which are in $datadir/lost_clean_utts." && \
-  rm -rf $datadir/clean $datadir/aug.vad && exit 1
+[ "$num" -gt 0 ] && echo "[exit] Could not find $num clean items for augmented utts which are in $datadir/lost_clean_utts." && \
+  rm -rf "$datadir"/clean "$datadir"/aug.vad && exit 1
 
-rm -rf $datadir/clean $datadir/aug.vad $datadir/lost_clean_utts
+rm -rf "$datadir"/clean "$datadir"/aug.vad "$datadir"/lost_clean_utts
 
 echo "Compute VAD for augmented data done."
 

@@ -3,7 +3,10 @@
 # Copyright xmuspeech (Author:Snowdar 2020-03-08)
 
 stage=0
+endstage=1
+# horovod, ddp(DistributedDataParallel), dp(DataParallel)
 multi_gpu_solution="ddp"
+master_addr="127.0.0.1"
 omp_num_threads=1
 port=0
 
@@ -59,7 +62,9 @@ if [ $num_gpu -gt 1 ]; then
       port=$(python3 ${SUBTOOLS}/pytorch/launcher/multi_gpu/get_free_port.py)
       launcher_options="$launcher_options --port $port"
     fi
-    train_cmd="python3 -m torch.distributed.launch --nproc_per_node=$num_gpu"
+    train_cmd="python3 -m torch.distributed.launch --nproc_per_node=$num_gpu --master_addr=$master_addr"
+  elif [ "$multi_gpu_solution" == "dp" ]; then
+    train_cmd="python3"
   else
     echo "[exit] Do not support $multi_gpu_solution solution for multi-GPU training." && exit 1
   fi
@@ -69,15 +74,11 @@ fi
 
 # Split this two stage to free GPU memory of model by an exit-python way 
 # and use these GPU memory to extract x-vectors.
-# if [[ "$stage" -le 3 && "$endstage" -ge "$stage" ]];then
-#   $train_cmd $launcher $launcher_options --stage=$stage --endstage=$endstage || exit 1 
-# fi
-if [[ "$stage" -eq 0 ]]; then
+if [[ "$stage" -le 0 && "$endstage" -ge 0 ]]; then
   $train_cmd $launcher $launcher_options --stage=0 || exit 1 
 fi
 
-# if [[ "$stage" -le 4 && "$endstage" -ge 4 ]];then
-if [[ "$stage" -eq 1 ]]; then
+if [[ "$stage" -le 1 && "$endstage" -ge 1 ]]; then
   python3 $launcher $launcher_options --stage=1 || exit 1
 fi
 

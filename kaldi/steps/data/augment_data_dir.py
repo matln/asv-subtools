@@ -30,33 +30,33 @@ def get_args():
         "E.g., subtools/kaldi/steps/data/augment_data_dir.py --utt-suffix aug --fg-snrs 20:10:5:0 --bg-snrs 20:15:10 "
         "--num-bg-noise 1:2:3 --fg-interval 3 --fg-noise-dir data/musan_noise --bg-noise-dir "
         "data/musan_music data/train data/train_aug", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--fg-snrs', type=str, dest = "fg_snr_str", default = '20:10:0',
+    parser.add_argument('--fg-snrs', type=str, dest="fg_snr_str", default='20:10:0',
                         help='When foreground noises are being added, the script will iterate through these SNRs.')
-    parser.add_argument('--bg-snrs', type=str, dest = "bg_snr_str", default = '20:10:0',
+    parser.add_argument('--bg-snrs', type=str, dest="bg_snr_str", default='20:10:0',
                         help='When background noises are being added, the script will iterate through these SNRs.')
     parser.add_argument('--num-bg-noises', type=str,
-                        dest = "num_bg_noises", default = '1',
+                        dest="num_bg_noises", default='1',
                         help='Number of overlapping background noises that we iterate over.'
-                            ' For example, if the input is "1:2:3" then the output wavs will have either '
-                            '1, 2, or 3 randomly chosen background noises overlapping the entire recording')
+                             ' For example, if the input is "1:2:3" then the output wavs will have either '
+                             '1, 2, or 3 randomly chosen background noises overlapping the entire recording')
     parser.add_argument('--fg-interval', type=int,
-                        dest = "fg_interval", default = 0,
+                        dest="fg_interval", default=0,
                         help='Number of seconds between the end of one '
-                            'foreground noise and the beginning of the next.')
+                             'foreground noise and the beginning of the next.')
     parser.add_argument('--utt-suffix', type=str,
-                        dest = "utt_suffix", default = None,
+                        dest="utt_suffix", default=None,
                         help='Suffix added to utterance IDs.')
     parser.add_argument('--utt-prefix', type=str,
-                        dest = "utt_prefix", default = None,
+                        dest="utt_prefix", default=None,
                         help='Prefix added to utterance IDs.')
-    parser.add_argument('--random-seed', type=int, dest = "random_seed",
-                        default = 123, help='Random seed.')
+    parser.add_argument('--random-seed', type=int, dest="random_seed",
+                        default=123, help='Random seed.')
     parser.add_argument("--modify-spk-id", type=str,
                         dest='modify_spk_id', default=False,
                         action=common_lib.StrToBoolAction,
                         choices=["true", "false"],
                         help='Utt prefix or suffix would be added to the spk id '
-                            'also (used in ASR), in speaker id it is left unmodifed')
+                             'also (used in ASR), in speaker id it is left unmodifed')
     parser.add_argument("--bg-noise-dir", type=str, dest="bg_noise_dir",
                         help="Background noise data directory")
     parser.add_argument("--fg-noise-dir", type=str, dest="fg_noise_dir",
@@ -91,27 +91,29 @@ def check_args(args):
         raise Exception("Either --fg-noise-dir or --bg-noise-dir must be specified")
     return args
 
+
 def get_noise_list(noise_wav_scp_filename):
     noise_wav_scp_file = open(noise_wav_scp_filename, 'r').readlines()
     noise_wavs = {}
     noise_utts = []
     for line in noise_wav_scp_file:
-        toks=line.split(" ")
+        toks = line.split(" ")
         wav = " ".join(toks[1:])
         noise_utts.append(toks[0])
         noise_wavs[toks[0]] = wav.rstrip()
     return noise_utts, noise_wavs
 
-def augment_wav(utt, wav, dur, fg_snr_opts, bg_snr_opts, fg_noise_utts, \
-    bg_noise_utts, noise_wavs, noise2dur, interval, num_opts):
+
+def augment_wav(utt, wav, dur, fg_snr_opts, bg_snr_opts, fg_noise_utts, bg_noise_utts,
+                noise_wavs, noise2dur, interval, num_opts):
     # This section is common to both foreground and background noises
     new_wav = ""
     dur_str = str(dur)
     noise_dur = 0
     tot_noise_dur = 0
-    snrs=[]
-    noises=[]
-    start_times=[]
+    snrs = []
+    noises = []
+    start_times = []
 
     # Now handle the background noises
     if len(bg_noise_utts) > 0:
@@ -125,8 +127,7 @@ def augment_wav(utt, wav, dur, fg_snr_opts, bg_snr_opts, fg_noise_utts, \
             #    "input signal, the first t secs of the signal is trimmed, "
             #    "otherwise, the signal will be repeated to "
             #    "fulfill the duration specified.
-            noise = "wav-reverberate --duration=" \
-            + dur_str + " \"" + noise_wavs[noise_utt] + "\" - |"
+            noise = "wav-reverberate --duration=" + dur_str + " \"" + noise_wavs[noise_utt] + "\" - |"
             snr = random.choice(bg_snr_opts)
             snrs.append(snr)
             start_times.append(0)
@@ -158,6 +159,7 @@ def augment_wav(utt, wav, dur, fg_snr_opts, bg_snr_opts, fg_noise_utts, \
             + start_times_str + " " + snrs_str + " - - |"
     return new_wav
 
+
 def get_new_id(utt, utt_modifier_type, utt_modifier):
     """ This function generates a new id from the input id
         This is needed when we have to create multiple copies of the original data
@@ -172,11 +174,10 @@ def get_new_id(utt, utt_modifier_type, utt_modifier):
 
     return new_utt
 
-def copy_file_if_exists(input_file, output_file, utt_modifier_type,
-                        utt_modifier, fields=[0]):
+
+def copy_file_if_exists(input_file, output_file, utt_modifier_type, utt_modifier, fields=[0]):
     if os.path.isfile(input_file):
-        clean_dict = parse_file_to_dict(input_file,
-            value_processor = lambda x: " ".join(x))
+        clean_dict = parse_file_to_dict(input_file, value_processor=lambda x: " ".join(x))
         new_dict = {}
         for key in clean_dict.keys():
             modified_key = get_new_id(key, utt_modifier_type, utt_modifier)
@@ -184,23 +185,24 @@ def copy_file_if_exists(input_file, output_file, utt_modifier_type,
                 values = clean_dict[key].split(" ")
                 modified_values = values
                 for idx in range(1, len(fields)):
-                    modified_values[idx-1] = get_new_id(values[idx-1],
-                                            utt_modifier_type, utt_modifier)
+                    modified_values[idx - 1] = get_new_id(
+                        values[idx - 1], utt_modifier_type, utt_modifier)
                 new_dict[modified_key] = " ".join(modified_values)
             else:
                 new_dict[modified_key] = clean_dict[key]
         write_dict_to_file(new_dict, output_file)
 
-def create_augmented_utt2uniq(input_dir, output_dir,
-                            utt_modifier_type, utt_modifier):
+
+def create_augmented_utt2uniq(input_dir, output_dir, utt_modifier_type, utt_modifier):
     clean_utt2spk_file = input_dir + "/utt2spk"
-    clean_utt2spk_dict = parse_file_to_dict(clean_utt2spk_file,
-                            value_processor = lambda x: " ".join(x))
+    clean_utt2spk_dict = parse_file_to_dict(
+        clean_utt2spk_file, value_processor=lambda x: " ".join(x))
     augmented_utt2uniq_dict = {}
     for key in clean_utt2spk_dict.keys():
         modified_key = get_new_id(key, utt_modifier_type, utt_modifier)
         augmented_utt2uniq_dict[modified_key] = key
     write_dict_to_file(augmented_utt2uniq_dict, output_dir + "/utt2uniq")
+
 
 def main():
     args = get_args()
@@ -210,8 +212,7 @@ def main():
     fg_snrs = [int(i) for i in args.fg_snr_str.split(":")]
     bg_snrs = [int(i) for i in args.bg_snr_str.split(":")]
     num_bg_noises = [int(i) for i in args.num_bg_noises.split(":")]
-    reco2dur = parse_file_to_dict(input_dir + "/reco2dur",
-        value_processor = lambda x: float(x[0]))
+    reco2dur = parse_file_to_dict(input_dir + "/reco2dur", value_processor=lambda x: float(x[0]))
     wav_scp_file = open(input_dir + "/wav.scp", 'r').readlines()
 
     noise_wavs = {}
@@ -223,18 +224,17 @@ def main():
     if args.bg_noise_dir:
         bg_noise_wav_filename = args.bg_noise_dir + "/wav.scp"
         bg_noise_utts, bg_noise_wavs = get_noise_list(bg_noise_wav_filename)
-        bg_noise_reco2dur = parse_file_to_dict(args.bg_noise_dir + "/reco2dur",
-            value_processor = lambda x: float(x[0]))
+        bg_noise_reco2dur = parse_file_to_dict(
+            args.bg_noise_dir + "/reco2dur", value_processor=lambda x: float(x[0]))
         noise_wavs.update(bg_noise_wavs)
         noise_reco2dur.update(bg_noise_reco2dur)
 
     # Load foreground noises
     if args.fg_noise_dir:
         fg_noise_wav_filename = args.fg_noise_dir + "/wav.scp"
-        fg_noise_reco2dur_filename = args.fg_noise_dir + "/reco2dur"
         fg_noise_utts, fg_noise_wavs = get_noise_list(fg_noise_wav_filename)
-        fg_noise_reco2dur = parse_file_to_dict(args.fg_noise_dir + "/reco2dur",
-            value_processor = lambda x: float(x[0]))
+        fg_noise_reco2dur = parse_file_to_dict(
+            args.fg_noise_dir + "/reco2dur", value_processor=lambda x: float(x[0]))
         noise_wavs.update(fg_noise_wavs)
         noise_reco2dur.update(fg_noise_reco2dur)
 
@@ -247,25 +247,25 @@ def main():
         # rstrip: 删除字符串末尾的指定字符（默认为空格）
         toks = line.rstrip().split(" ")
         utt = toks[0]
-        # 难道还有多个wav吗？
+        # 难道还有多个wav吗？wav.scp 第二列之后可能是管道命令的组合
         wav = " ".join(toks[1:])
         dur = reco2dur[utt]
-        new_wav = augment_wav(utt, wav, dur, fg_snrs, bg_snrs, fg_noise_utts,
-            bg_noise_utts, noise_wavs, noise_reco2dur, args.fg_interval,
-            num_bg_noises)
+        new_wav = augment_wav(utt, wav, dur, fg_snrs, bg_snrs, fg_noise_utts, bg_noise_utts,
+                              noise_wavs, noise_reco2dur, args.fg_interval, num_bg_noises)
 
         new_utt = get_new_id(utt, args.utt_modifier_type, args.utt_modifier)
 
         new_utt2wav[new_utt] = new_wav
 
+    # 与86，87行重复
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     write_dict_to_file(new_utt2wav, output_dir + "/wav.scp")
     copy_file_if_exists(input_dir + "/reco2dur", output_dir + "/reco2dur",
-                                args.utt_modifier_type, args.utt_modifier)
+                        args.utt_modifier_type, args.utt_modifier)
     copy_file_if_exists(input_dir + "/utt2dur", output_dir + "/utt2dur",
-                                args.utt_modifier_type, args.utt_modifier)
+                        args.utt_modifier_type, args.utt_modifier)
 
     # Check whether to modify the speaker id or not while creating utt2spk file
     fields = ([0, 1] if args.modify_spk_id else [0])
@@ -287,23 +287,25 @@ def main():
 
     if args.modify_spk_id:
         copy_file_if_exists(input_dir + "/spk2gender", output_dir + "/spk2gender",
-                        args.utt_modifier_type, args.utt_modifier)
+                            args.utt_modifier_type, args.utt_modifier)
     else:
         copy_file_if_exists(input_dir + "/spk2gender", output_dir + "/spk2gender", None, "")
 
     # Create utt2uniq file
     if os.path.isfile(input_dir + "/utt2uniq"):
         copy_file_if_exists(input_dir + "/utt2uniq", output_dir + "/utt2uniq",
-                        args.utt_modifier_type, args.utt_modifier, fields=[0])
+                            args.utt_modifier_type, args.utt_modifier, fields=[0])
     else:
         create_augmented_utt2uniq(input_dir, output_dir,
-                        args.utt_modifier_type, args.utt_modifier)
+                                  args.utt_modifier_type, args.utt_modifier)
 
-    data_lib.RunKaldiCommand("{subtools}/kaldi/utils/utt2spk_to_spk2utt.pl <{output_dir}/utt2spk >{output_dir}/spk2utt"
-                    .format(subtools = subtools_path, output_dir = output_dir))
+    data_lib.RunKaldiCommand("{subtools}/kaldi/utils/utt2spk_to_spk2utt.pl "
+                             "<{output_dir}/utt2spk >{output_dir}/spk2utt".format(
+                                 subtools=subtools_path, output_dir=output_dir))
 
-    data_lib.RunKaldiCommand("{subtools}/kaldi/utils/fix_data_dir.sh {output_dir}"
-                             .format(subtools = subtools_path, output_dir = output_dir))
+    data_lib.RunKaldiCommand("{subtools}/kaldi/utils/fix_data_dir.sh {output_dir}".format(
+        subtools=subtools_path, output_dir=output_dir))
+
 
 if __name__ == "__main__":
     main()

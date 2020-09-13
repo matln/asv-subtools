@@ -56,16 +56,16 @@ while true; do
       exit 1 ;;
     # If the first command-line argument begins with "--" (e.g. --foo-bar),
     # then work out the variable name as $name, which will equal "foo_bar".
-    --*) name=`echo "$1" | sed s/^--// | sed s/-/_/g`;
+    --*) _name=`echo "$1" | sed s/^--// | sed s/-/_/g`;
       # Next we test whether the variable in question is undefned-- if so it's
       # an invalid option and we die.  Note: $0 evaluates to the name of the
       # enclosing script.
       # The test [ -z ${foo_bar+xxx} ] will return true if the variable foo_bar
       # is undefined.  We then have to wrap this test inside "eval" because
       # foo_bar is itself inside a variable ($name).
-      eval '[ -z "${'$name'+xxx}" ]' && echo "$0: invalid option $1" 1>&2 && exit 1;
+      eval '[ -z "${'$_name'+xxx}" ]' && echo "$0: invalid option $1" 1>&2 && exit 1;
 
-      oldval="`eval echo \\$$name`";
+      oldval="`eval echo \\$$_name`";
       # Work out whether we seem to be expecting a Boolean argument.
       if [ "$oldval" == "true" ] || [ "$oldval" == "false" ]; then
         was_bool=true;
@@ -75,7 +75,7 @@ while true; do
 
       # Set the variable to the right value-- the escaped quotes make it work if
       # the option had spaces, like --cmd "queue.pl -sync y"
-      eval $name=\"$2\";
+      eval $_name=\"$2\";
 
       # Check that Boolean-valued arguments are really Boolean.
       if $was_bool && [[ "$2" != "true" && "$2" != "false" ]]; then

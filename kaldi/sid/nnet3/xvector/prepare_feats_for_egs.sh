@@ -18,7 +18,7 @@ cmn_window=300
 echo "$0 $@"  # Print the command line for logging
 
 # if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
-. ${SUBTOOLS}/parse_options.sh || exit 1;
+. "${SUBTOOLS}"/parse_options.sh || exit 1;
 if [ $# != 3 ]; then
   echo "Usage: $0 <in-data-dir> <out-data-dir> <feat-dir>"
   echo "e.g.: $0 data/train data/train_no_sil exp/make_xvector_features"
@@ -33,10 +33,10 @@ data_in=$1
 data_out=$2
 dir=$3
 
-name=`basename $data_in`
+name=$(basename "${data_in}")
 
-for f in $data_in/feats.scp $data_in/vad.scp ; do
-  [ ! -f $f ] && echo "$0: No such file $f" && exit 1;
+for f in ${data_in}/feats.scp ${data_in}/vad.scp ; do
+  [ ! -f "$f" ] && echo "$0: No such file $f" && exit 1;
 done
 
 # Set various variables.
@@ -55,28 +55,28 @@ for n in $(seq $nj); do
   ${SUBTOOLS}/kaldi/utils/create_data_link.pl $featdir/xvector_feats_${name}.${n}.ark
 done
 
-cp $data_in/utt2spk $data_out/utt2spk
-cp $data_in/spk2utt $data_out/spk2utt
-cp $data_in/wav.scp $data_out/wav.scp
+cp ${data_in}/utt2spk ${data_out}/utt2spk
+cp ${data_in}/spk2utt ${data_out}/spk2utt
+cp ${data_in}/wav.scp ${data_out}/wav.scp
 
 write_num_frames_opt="--write-num-frames=ark,t:$featdir/log/utt2num_frames.JOB"
 
 sdata_in=$data_in/split${nj}utt;
-${SUBTOOLS}/kaldi/utils/split_data.sh --per-utt $data_in $nj || exit 1;
+"${SUBTOOLS}"/kaldi/utils/split_data.sh --per-utt "${data_in}" $nj || exit 1;
 
 
-if [ "$cmn" == "true" ];then
-$cmd JOB=1:$nj $dir/log/create_xvector_feats_${name}.JOB.log \
-  apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window \
-  scp:${sdata_in}/JOB/feats.scp ark:- \| \
-  select-voiced-frames ark:- scp,s,cs:${sdata_in}/JOB/vad.scp ark:- \| \
-  copy-feats --compress=$compress $write_num_frames_opt ark:- \
-  ark,scp:$featdir/xvector_feats_${name}.JOB.ark,$featdir/xvector_feats_${name}.JOB.scp || exit 1;
+if [ "$cmn" == "true" ]; then
+  $cmd JOB=1:$nj $dir/log/create_xvector_feats_${name}.JOB.log \
+    apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window \
+      scp:${sdata_in}/JOB/feats.scp ark:- \| \
+    select-voiced-frames ark:- scp,s,cs:${sdata_in}/JOB/vad.scp ark:- \| \
+    copy-feats --compress=$compress $write_num_frames_opt ark:- \
+      ark,scp:$featdir/xvector_feats_${name}.JOB.ark,$featdir/xvector_feats_${name}.JOB.scp || exit 1;
 else
-$cmd JOB=1:$nj $dir/log/create_xvector_feats_${name}.JOB.log \
-  select-voiced-frames scp:${sdata_in}/JOB/feats.scp scp,s,cs:${sdata_in}/JOB/vad.scp ark:- \| \
-  copy-feats --compress=$compress $write_num_frames_opt ark:- \
-  ark,scp:$featdir/xvector_feats_${name}.JOB.ark,$featdir/xvector_feats_${name}.JOB.scp || exit 1;
+  $cmd JOB=1:$nj $dir/log/create_xvector_feats_${name}.JOB.log \
+    select-voiced-frames scp:${sdata_in}/JOB/feats.scp scp,s,cs:${sdata_in}/JOB/vad.scp ark:- \| \
+    copy-feats --compress=$compress $write_num_frames_opt ark:- \
+      ark,scp:$featdir/xvector_feats_${name}.JOB.ark,$featdir/xvector_feats_${name}.JOB.scp || exit 1;
 fi
 
 
@@ -89,7 +89,7 @@ for n in $(seq $nj); do
 done > $data_out/utt2num_frames || exit 1
 rm $featdir/log/utt2num_frames.*
 
-${SUBTOOLS}/kaldi/utils/fix_data_dir.sh $data_out
+${SUBTOOLS}/kaldi/utils/fix_data_dir.sh ${data_out}
 rm -rf $data_out/.backup
 
 echo "$0: Succeeded creating xvector features for $name"

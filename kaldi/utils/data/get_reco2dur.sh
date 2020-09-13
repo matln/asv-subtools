@@ -22,7 +22,7 @@ frame_shift=0.01
 cmd=run.pl
 nj=4
 
-. ${SUBTOOLS}/kaldi/utils/parse_options.sh
+. "${SUBTOOLS}"/kaldi/utils/parse_options.sh
 # . ./subtools/path.sh
 
 if [ $# != 1 ]; then
@@ -40,25 +40,25 @@ export LC_ALL=C
 data=$1
 
 
-if [ -s $data/reco2dur ] && \
-  [ $(wc -l < $data/wav.scp) -eq $(wc -l < $data/reco2dur) ]; then
+if [ -s "$data"/reco2dur ] && \
+  [ $(wc -l < "$data"/wav.scp) -eq $(wc -l < "$data"/reco2dur) ]; then
   echo "$0: $data/reco2dur already exists with the expected length.  We won't recompute it."
   exit 0;
 fi
 
-if [ -s $data/utt2dur ] && \
-   [ $(wc -l < $data/utt2spk) -eq $(wc -l < $data/utt2dur) ] && \
-   [ ! -s $data/segments ]; then
+if [ -s "$data"/utt2dur ] && \
+   [ $(wc -l < "$data"/utt2spk) -eq $(wc -l < "$data"/utt2dur) ] && \
+   [ ! -s "$data"/segments ]; then
 
   echo "$0: $data/wav.scp indexed by utt-id; copying utt2dur to reco2dur"
-  cp $data/utt2dur $data/reco2dur && exit 0;
+  cp "$data"/utt2dur "$data"/reco2dur && exit 0;
 
-elif [ -f $data/wav.scp ]; then
+elif [ -f "$data"/wav.scp ]; then
   echo "$0: obtaining durations from recordings"
 
   # if the wav.scp contains only lines of the form
   # utt1  /foo/bar/sph2pipe -f wav /baz/foo.sph |
-  if cat $data/wav.scp | perl -e '
+  if cat "$data"/wav.scp | perl -e '
      while (<>) { s/\|\s*$/ |/;  # make sure final | is preceded by space.
              @A = split; if (!($#A == 5 && $A[1] =~ m/sph2pipe$/ &&
                                $A[2] eq "-f" && $A[3] eq "wav" && $A[5] eq "|")) { exit(1); }

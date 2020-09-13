@@ -13,7 +13,7 @@ import libs.common as common_lib
 
 def get_args():
     parser = argparse.ArgumentParser(description="Create MUSAN corpus",
-                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--use-vocals", type=str,
                         dest='use_vocals', default=True,
                         action=common_lib.StrToBoolAction,

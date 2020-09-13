@@ -115,6 +115,26 @@ def get_chunk_egs(args):
     else:
         trainset = dataset
 
+
+    # f = open("/home/lijianchen/workspace/sre/spk2utt_{}.txt".format(args.data_dir[-11:-7]), 'w')
+    # for key in trainset.spk2utt.keys():
+    #     f.write(key + ' ' + " ".join(trainset.spk2utt[key]) + '\n')
+    # f.close
+    # f = open("/home/lijianchen/workspace/sre/utt2spk_{}.txt".format(args.data_dir[-11:-7]), 'w')
+    # for key in trainset.utt2spk.keys():
+    #     f.write(key + ' ' + trainset.utt2spk[key] + '\n')
+    # f.close
+    # f = open("/home/lijianchen/workspace/sre/spk2utt_val_{}.txt".format(args.data_dir[-11:-7]), 'w')
+    # for key in valid.spk2utt.keys():
+    #     f.write(key + ' ' + " ".join(valid.spk2utt[key]) + '\n')
+    # f.close
+    # f = open("/home/lijianchen/workspace/sre/utt2spk_val_{}.txt".format(args.data_dir[-11:-7]), 'w')
+    # for key in valid.utt2spk.keys():
+    #     f.write(key + ' ' + valid.utt2spk[key] + '\n')
+    # f.close
+
+
+
     logger.info("Generate chunk egs with chunk-size={0}.".format(args.chunk_size))
     # 按照一定的overlap将每个utterance分割成chunk
     trainset_samples = ChunkSamples(trainset, args.chunk_size, chunk_type=args.sample_type,

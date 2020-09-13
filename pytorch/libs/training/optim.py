@@ -71,12 +71,18 @@ def get_optimizer(model, params: dict = {}):
     elif name == "sgdW":
         base_optimizer = SGDW(model.parameters(), lr=learn_rate, momentum=beta1,
                               weight_decay=weight_decay)
+    elif name == "sgdW_original":
+        base_optimizer = SGDW_O(model.parameters(), lr=learn_rate, momentum=beta1,
+                                weight_decay=weight_decay)
     elif name == "adam":
         base_optimizer = optim.Adam(model.parameters(), lr=learn_rate, betas=(beta1, beta2),
                                     weight_decay=weight_decay)
     elif name == "adamW":
         base_optimizer = AdamW(model.parameters(), lr=learn_rate, betas=(beta1, beta2),
                                weight_decay=weight_decay, **extra_params)
+    elif name == "adamW_original":
+        base_optimizer = AdamW_O(model.parameters(), lr=learn_rate, betas=(beta1, beta2),
+                                 weight_decay=weight_decay, **extra_params)
     elif name == "radam":
         base_optimizer = RAdam(model.parameters(), lr=learn_rate, betas=(beta1, beta2),
                                weight_decay=weight_decay)
@@ -254,9 +260,107 @@ class SGDW(Optimizer):
                         d_p = buf
 
                 if group['weight_decay'] != 0:
+                    # 去掉原论文中引入的ScheduleMultiplier eta，直接
+                    # 在 lr 上进行 cosine 模拟退火，并在一开始放大 weight decay 的大小（除以 init lr）
+                    # 这样就可以和 SGDR 共用 一个函数（lr_scheduler.py）
                     p.data.add_(-group['weight_decay'] * group['lr'] * p.data)
 
                 p.data.add_(-group['lr'] * d_p)
+
+        return loss
+
+
+class SGDW_O(Optimizer):
+    r"""Implements stochastic gradient descent (optionally with momentum) with decouped weight decay.
+
+    Nesterov momentum is based on the formula from
+    `On the importance of initialization and momentum in deep learning`__.
+
+    Args:
+        params (iterable): iterable of parameters to optimize or dicts defining
+            parameter groups
+        lr (float): learning rate
+        momentum (float, optional): momentum factor (default: 0)
+        weight_decay (float, optional): weight decay (L2 penalty) (default: 0)
+        dampening (float, optional): dampening for momentum (default: 0)
+        nesterov (bool, optional): enables Nesterov momentum (default: False)
+
+    Example:
+        >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
+        >>> optimizer.zero_grad()
+        >>> loss_fn(model(input), target).backward()
+        >>> optimizer.step()
+
+    __ http://www.cs.toronto.edu/%7Ehinton/absps/momentum.pdf
+
+    .. note::
+        The implementation of SGD with Momentum/Nesterov is consistent with
+        Sutskever et. al. and implementations in some other frameworks.
+
+        .. math::
+             v_{t+1} = \mu * v_{t} + lr * g_{t+1} \\
+             p_{t+1} = p_{t} - v_{t+1}
+
+        The Nesterov version is analogously modified.
+    """
+
+    def __init__(self, params, lr=0.1, momentum=0, dampening=0,
+                 weight_decay=0, nesterov=False):
+        if lr < 0.0:
+            raise ValueError("Invalid learning rate: {}".format(lr))
+        if momentum < 0.0:
+            raise ValueError("Invalid momentum value: {}".format(momentum))
+        if weight_decay < 0.0:
+            raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
+
+        defaults = dict(lr=lr, momentum=momentum, dampening=dampening,
+                        weight_decay=weight_decay, nesterov=nesterov)
+        if nesterov and (momentum <= 0 or dampening != 0):
+            raise ValueError("Nesterov momentum requires a momentum and zero dampening")
+        super(SGDW_O, self).__init__(params, defaults)
+
+    def __setstate__(self, state):
+        super(SGDW_O, self).__setstate__(state)
+        for group in self.param_groups:
+            group.setdefault('nesterov', False)
+
+    def step(self, closure=None):
+        """Performs a single optimization step.
+
+        Arguments:
+            closure (callable, optional): A closure that reevaluates the model
+                and returns the loss.
+        """
+        loss = None
+        if closure is not None:
+            loss = closure()
+
+        for group in self.param_groups:
+            momentum = group['momentum']
+            dampening = group['dampening']
+            nesterov = group['nesterov']
+
+            for p in group['params']:
+                if p.grad is None:
+                    continue
+                d_p = p.grad.data
+
+                if momentum != 0:
+                    param_state = self.state[p]
+                    if 'momentum_buffer' not in param_state:
+                        buf = param_state['momentum_buffer'] = torch.clone(d_p).detach()
+                    else:
+                        buf = param_state['momentum_buffer']
+                        buf.mul_(momentum).add_((1 - dampening) * group['lr'] * d_p)
+                    if nesterov:
+                        d_p = d_p.add(momentum, buf)
+                    else:
+                        d_p = buf
+
+                if group['weight_decay'] != 0:
+                    p.data.add_(-group['weight_decay'] * p.data)
+
+                p.data.add_(-1 * d_p)
 
         return loss
 
@@ -324,8 +428,130 @@ class AdamW(Optimizer):
                 if p.grad is None:
                     continue
 
+                # Perform optimization step
+                grad = p.grad.data
+                if grad.is_sparse:
+                    raise RuntimeError('Adam does not support sparse gradients, please consider SparseAdam instead')
+                amsgrad = group['amsgrad']
+
+                state = self.state[p]
+
+                # State initialization
+                if len(state) == 0:
+                    state['step'] = 0
+                    # Exponential moving average of gradient values
+                    state['exp_avg'] = torch.zeros_like(p.data) #, memory_format=torch.preserve_format)
+                    # Exponential moving average of squared gradient values
+                    state['exp_avg_sq'] = torch.zeros_like(p.data) #, memory_format=torch.preserve_format)
+                    if amsgrad:
+                        # Maintains max of all exp. moving avg. of sq. grad. values
+                        state['max_exp_avg_sq'] = torch.zeros_like(p.data) #, memory_format=torch.preserve_format)
+
+                exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
+                if amsgrad:
+                    max_exp_avg_sq = state['max_exp_avg_sq']
+                beta1, beta2 = group['betas']
+
+                state['step'] += 1
+                bias_correction1 = 1 - beta1 ** state['step']
+                bias_correction2 = 1 - beta2 ** state['step']
+
+                if self.gc:
+                    # For linear layer Y=WX+b, the tensor shape of weight is (outplanes, inplanes),
+                    # but for CNN layer(1d and 2d etc.), the tensor shape of weight is (outplanes, inplanes, [cnn-core]).
+                    # And here the gc is used in both linear and CNN layer.
+                    # It is not influenced by weight decay for weight decay directly changes the p.data rather than p.grad.
+                    # But when using gc in adam, the order question should be considered for L2 regularization changes 
+                    # the p.grad.
+                    if len(list(grad.size())) >= 2:
+                        grad.add_(-grad.mean(dim=tuple(range(1, len(list(grad.size())))), keepdim=True))
+
+                # Decay the first and second moment running average coefficient
+                exp_avg.mul_(beta1).add_((1 - beta1) * grad)
+                exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
+                if amsgrad:
+                    # Maintains the maximum of all 2nd moment running avg. till now
+                    torch.max(max_exp_avg_sq, exp_avg_sq, out=max_exp_avg_sq)
+                    # Use the max. for normalizing running avg. of gradient
+                    denom = (max_exp_avg_sq.sqrt() / math.sqrt(bias_correction2)).add_(group['eps'])
+                else:
+                    denom = (exp_avg_sq.sqrt() / math.sqrt(bias_correction2)).add_(group['eps'])
+
+                step_size = group['lr'] / bias_correction1
+
                 # Perform stepweight decay
+                # 去掉原论文中引入的ScheduleMultiplier eta，直接
+                # 在 lr 上进行 cosine 模拟退火，并在一开始放大 weight decay 的大小（除以 init lr）
+                # 这样就可以和 SGDR 共用 一个函数（lr_scheduler.py）
                 p.data.mul_(1 - group['lr'] * group['weight_decay'])
+
+                p.data.addcdiv_(exp_avg, denom, value=-step_size)
+
+        return loss
+
+
+class AdamW_O(Optimizer):
+    r"""Implements AdamW algorithm.
+
+    The original Adam algorithm was proposed in `Adam: A Method for Stochastic Optimization`_.
+    The AdamW variant was proposed in `Decoupled Weight Decay Regularization`_.
+
+    Arguments:
+        params (iterable): iterable of parameters to optimize or dicts defining
+            parameter groups
+        lr (float, optional): learning rate (default: 1e-3)
+        betas (Tuple[float, float], optional): coefficients used for computing
+            running averages of gradient and its square (default: (0.9, 0.999))
+        eps (float, optional): term added to the denominator to improve
+            numerical stability (default: 1e-8)
+        weight_decay (float, optional): weight decay coefficient (default: 1e-2)
+        amsgrad (boolean, optional): whether to use the AMSGrad variant of this
+            algorithm from the paper `On the Convergence of Adam and Beyond`_
+            (default: False)
+
+    .. _Adam\: A Method for Stochastic Optimization:
+        https://arxiv.org/abs/1412.6980
+    .. _Decoupled Weight Decay Regularization:
+        https://arxiv.org/abs/1711.05101
+    .. _On the Convergence of Adam and Beyond:
+        https://openreview.net/forum?id=ryQu7f-RZ
+    """
+
+    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8,
+                 weight_decay=1e-2, amsgrad=False, gc=False):
+        if not 0.0 <= lr:
+            raise ValueError("Invalid learning rate: {}".format(lr))
+        if not 0.0 <= eps:
+            raise ValueError("Invalid epsilon value: {}".format(eps))
+        if not 0.0 <= betas[0] < 1.0:
+            raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
+        if not 0.0 <= betas[1] < 1.0:
+            raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
+        self.gc = gc
+        defaults = dict(lr=lr, betas=betas, eps=eps,
+                        weight_decay=weight_decay, amsgrad=amsgrad)
+        super(AdamW_O, self).__init__(params, defaults)
+
+    def __setstate__(self, state):
+        super(AdamW_O, self).__setstate__(state)
+        for group in self.param_groups:
+            group.setdefault('amsgrad', False)
+
+    def step(self, closure=None):
+        """Performs a single optimization step.
+
+        Arguments:
+            closure (callable, optional): A closure that reevaluates the model
+                and returns the loss.
+        """
+        loss = None
+        if closure is not None:
+            loss = closure()
+
+        for group in self.param_groups:
+            for p in group['params']:
+                if p.grad is None:
+                    continue
 
                 # Perform optimization step
                 grad = p.grad.data
@@ -362,8 +588,8 @@ class AdamW(Optimizer):
                     # It is not influenced by weight decay for weight decay directly changes the p.data rather than p.grad.
                     # But when using gc in adam, the order question should be considered for L2 regularization changes 
                     # the p.grad.
-                    if len(list(grad.size()))>=2:
-                        grad.add_(-grad.mean(dim = tuple(range(1,len(list(grad.size())))), keepdim = True))
+                    if len(list(grad.size())) >= 2:
+                        grad.add_(-grad.mean(dim=tuple(range(1, len(list(grad.size())))), keepdim=True))
 
                 # Decay the first and second moment running average coefficient
                 exp_avg.mul_(beta1).add_((1 - beta1) * grad)
@@ -377,6 +603,9 @@ class AdamW(Optimizer):
                     denom = (exp_avg_sq.sqrt() / math.sqrt(bias_correction2)).add_(group['eps'])
 
                 step_size = group['lr'] / bias_correction1
+
+                # Perform stepweight decay
+                p.data.mul_(1 - group['weight_decay'])
 
                 p.data.addcdiv_(exp_avg, denom, value=-step_size)
 

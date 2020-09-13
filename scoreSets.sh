@@ -211,9 +211,9 @@ done
 # 假如 lda_data_config=trainset[trainset devset]，lda_process="norm,trainlda"
 # 则在，trainset config 文件中附加：
 #     lda_process norm,trainlda
-#     lda_data_conf $vectordir/trainset/conf
+#     lda_data_conf $vectordir/$trainset/conf
 # 在 enrollset 和 testset 的config文件最后附加：
-#     lda_data_conf $vectordir/trainset/conf
+#     lda_data_conf $vectordir/$trainset/conf
 if [ "$lda" == "true" ]; then
   echo $lda_data_config | sed 's/]/\n/g' | sed 's/\[/ /g' | sed '/^$/d' | \
     awk -v vdir=$vectordir -v lda_process=$lda_process -v clda=$clda '{

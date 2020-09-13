@@ -34,9 +34,9 @@ valid_chunk_num=2
 seed=1024
 
 # . subtools/path.sh
-. ${SUBTOOLS}/parse_options.sh
+. "${SUBTOOLS}"/parse_options.sh
 
-if [[ $# != 2 ]];then
+if [[ $# != 2 ]]; then
   echo "[exit] Num of parameters is not equal to 2"
   echo "usage:$0 <data-dir> <egs-dir>"
   exit 1
@@ -44,32 +44,32 @@ fi
 
 # Key params
 traindata=$1
-name=`echo "$traindata" | sed 's/\// /g' | awk '{for(i=1;i<=NF-1;i++){printf $i"-";}printf $NF}'`
+name=$(echo "$traindata" | sed 's/\// /g' | awk '{for(i=1;i<=NF-1;i++){printf $i"-";}printf $NF}')
 egsdir=$2
 
 [ ! -d "$traindata" ] && echo "The traindata [$traindata] is not exist." && exit 1
 
-if [[ $stage -le 0 && 0 -le $endstage ]];then
+if [[ $stage -le 0 && 0 -le $endstage ]]; then
   echo "$0: stage 0"
-  if [ "$force_clear" == "true" ]; then
-    rm -rf ${traindata}_nosil
-    rm -rf $features_exp/${name}_nosil
+  if [ "${force_clear}" == "true" ]; then
+    rm -rf "${traindata}"_nosil
+    rm -rf ${features_exp}/"${name}"_nosil
   fi
 
-  if [ ! -d "$features_exp" ]; then
-    mkdir -p $features_exp
+  if [ ! -d "${features_exp}" ]; then
+    mkdir -p ${features_exp}
   fi
 
   # This script applies CMVN and removes nonspeech frames.  Note that this is somewhat
   # wasteful, as it roughly doubles the amount of training data on disk.  After
   # creating training examples, this can be removed.
   if [ ! -d "${traindata}_nosil" ]; then
-    ${SUBTOOLS}/kaldi/sid/nnet3/xvector/prepare_feats_for_egs.sh \
+    "${SUBTOOLS}"/kaldi/sid/nnet3/xvector/prepare_feats_for_egs.sh \
       --nj $nj \
       --cmd "run.pl" \
       --compress $compress \
       --cmn $cmn \
-      $traindata ${traindata}_nosil $features_exp/${name}_nosil || exit 1
+      "$traindata" "${traindata}"_nosil $features_exp/"${name}"_nosil || exit 1
   else
     echo "Note, the ${traindata}_nosil is exist but force_clear is not true, so do not prepare feats again."
   fi
@@ -91,7 +91,7 @@ if [[ $stage -le 2 && 2 -le $endstage ]]; then
   [ "$egsdir" == "" ] && echo "The egsdir is not specified." && exit 1
 
   # valid: validation
-  python3 ${SUBTOOLS}/pytorch/pipeline/onestep/get_chunk_egs.py \
+  python3 "${SUBTOOLS}"/pytorch/pipeline/onestep/get_chunk_egs.py \
     --chunk-size=$min_chunk \
     --valid-sample=$valid_sample \
     --valid-num-utts=$valid_num_utts \

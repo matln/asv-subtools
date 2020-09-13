@@ -28,7 +28,7 @@ echo "$0 $@"
 set -e 
 
 # if [ -f subtools/path.sh ]; then . subtools/path.sh; fi
-. ${SUBTOOLS}/parse_options.sh || exit 1;
+. "${SUBTOOLS}"/parse_options.sh || exit 1;
 
 if [[ $# != 3 ]]; then
   echo "[exit] Num of parameters is not equal to 3"
@@ -45,7 +45,7 @@ mkdir -p $dir/log
 
 num=0
 
-[ -s $dir/xvector.scp ] && num=$(grep -E "ERROR|Error" $dir/log/extract.*.log | wc -l)
+[ -s "$dir"/xvector.scp ] && num=$(grep -E "ERROR|Error" $dir/log/extract.*.log | wc -l)
 
 [[ "$force" != "true" && -s $dir/xvector.scp && $num == 0 ]] && echo "Do not extract xvectors of [ $data ] to [ $dir ] again with force=$force." && exit 0
 
@@ -88,11 +88,11 @@ done
 
 case $split_type in
     default)
-      ${SUBTOOLS}/kaldi/utils/split_data.sh --per-utt $data $nj
+      "${SUBTOOLS}"/kaldi/utils/split_data.sh --per-utt $data $nj
       sdata=$data/split${nj}utt/JOB
       ;;
     order)
-      ${SUBTOOLS}/splitDataByLength.sh $data $nj
+      "${SUBTOOLS}"/splitDataByLength.sh $data $nj
       sdata=$data/split${nj}order/JOB
       ;;
     *)

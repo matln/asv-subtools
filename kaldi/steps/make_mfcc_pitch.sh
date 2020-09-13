@@ -19,10 +19,11 @@ write_utt2num_frames=true  # If true writes utt2num_frames.
 write_utt2dur=true
 # End configuration section.
 
-echo "$0 $@"  # Print the command line for logging.
+echo "$0 $*"  # Print the command line for logging.
+echo "$1"
 
 # if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
-. ${SUBTOOLS}/parse_options.sh || exit 1;
+. "${SUBTOOLS}"/parse_options.sh || exit 1;
 
 if [ $# -lt 1 ] || [ $# -gt 3 ]; then
   cat >&2 <<EOF

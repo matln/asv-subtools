@@ -266,8 +266,10 @@ class MarginSoftmaxLoss(TopVirtualLoss):
             inter_cosine_theta = torch.softmax(self.s * cosine_theta, dim=1)
             inter_cosine_theta_target = inter_cosine_theta.gather(
                 1, targets.unsqueeze(1))
-            inter_loss = torch.log((inter_cosine_theta.sum(
-                dim=1) - inter_cosine_theta_target)/(self.num_targets - 1) + self.eps).mean()
+            # 1/N * \log (\frac{1 - logit_y}{C-1})
+            inter_loss = torch.log(
+                (inter_cosine_theta.sum(dim=1) - inter_cosine_theta_target) / 
+                (self.num_targets - 1) + self.eps).mean()
 
         if self.method == "am":
             penalty_cosine_theta = cosine_theta_target - self.m
@@ -282,31 +284,30 @@ class MarginSoftmaxLoss(TopVirtualLoss):
                 double_cosine_theta = torch.cos(
                     torch.acos(cosine_theta).add(-self.m))
         elif self.method == "sm1":
+            # 可以自动调节惩罚项的大小，惩罚项线性减小
             # penalty_cosine_theta = cosine_theta_target - (1 - cosine_theta_target) * self.m
             penalty_cosine_theta = (1 + self.m) * cosine_theta_target - self.m
         elif self.method == "sm2":
-            penalty_cosine_theta = cosine_theta_target - \
-                (1 - cosine_theta_target**2) * self.m
+            # 惩罚项指数下降
+            penalty_cosine_theta = cosine_theta_target - (1 - cosine_theta_target**2) * self.m
         elif self.method == "sm3":
-            penalty_cosine_theta = cosine_theta_target - \
-                (1 - cosine_theta_target)**2 * self.m
+            penalty_cosine_theta = cosine_theta_target - (1 - cosine_theta_target)**2 * self.m
         else:
             raise ValueError(
                 "Do not support this {0} margin w.r.t [ am | aam | sm1 | sm2 | sm3 ]".format(self.method))
 
+        # 模拟退火
         penalty_cosine_theta = 1 / (1 + self.lambda_factor) * penalty_cosine_theta + \
             self.lambda_factor / (1 + self.lambda_factor) * cosine_theta_target
 
         if self.double:
-            cosine_theta = 1/(1+self.lambda_factor) * double_cosine_theta + \
-                self.lambda_factor/(1+self.lambda_factor) * cosine_theta
+            cosine_theta = 1 / (1+self.lambda_factor) * double_cosine_theta + \
+                self.lambda_factor / (1+self.lambda_factor) * cosine_theta
 
         if self.curricular is not None:
-            cosine_theta = self.curricular(
-                cosine_theta, cosine_theta_target, penalty_cosine_theta)
+            cosine_theta = self.curricular(cosine_theta, cosine_theta_target, penalty_cosine_theta)
 
-        outputs = self.s * \
-            cosine_theta.scatter(1, targets.unsqueeze(1), penalty_cosine_theta)
+        outputs = self.s * cosine_theta.scatter(1, targets.unsqueeze(1), penalty_cosine_theta)
 
         # Other extra loss
         # Final reported loss will be always higher than softmax loss for the absolute margin penalty and
@@ -320,9 +321,8 @@ class MarginSoftmaxLoss(TopVirtualLoss):
             ring_loss = 0.
 
         if self.mhe_loss:
-            sub_weight = normalized_weight - \
-                torch.index_select(normalized_weight, 0,
-                                   targets).unsqueeze(dim=1)
+            sub_weight = normalized_weight -  torch.index_select(
+                normalized_weight, 0, targets).unsqueeze(dim=1)
             # [N, C]
             normed_sub_weight = sub_weight.norm(2, dim=2)
             mask = torch.full_like(normed_sub_weight, True, dtype=torch.bool).scatter_(

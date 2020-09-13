@@ -5,7 +5,7 @@
 nj=16
 outdir=features
 
-. ${SUBTOOLS}/parse_options.sh
+. "${SUBTOOLS}"/parse_options.sh
 
 if [[ "$#" != 2 ]]; then
   echo "[exit] Num of parameters is not equal to 2"
@@ -16,9 +16,13 @@ fi
 data=$1
 config=$2
 
-name=`echo "$data" | sed 's/\// /g' | awk '{for(i=1;i<=NF-1;i++){printf $i"-";}printf $NF}'`
-${SUBTOOLS}/kaldi/sid/compute_vad_decision.sh --nj $nj --cmd "run.pl" --vad-config $config $data $outdir/vad/$name/log $outdir/vad/$name || exit 1
+name=$(echo "$data" | sed 's/\// /g' | awk '{for(i=1;i<=NF-1;i++){printf $i"-";}printf $NF}')
+"${SUBTOOLS}"/kaldi/sid/compute_vad_decision.sh \
+  --nj $nj \
+  --cmd "run.pl" \
+  --vad-config "$config" \
+  "$data" $outdir/vad/"$name"/log $outdir/vad/"$name" || exit 1
 
-${SUBTOOLS}/kaldi/utils/fix_data_dir.sh $data
+"${SUBTOOLS}"/kaldi/utils/fix_data_dir.sh "$data"
 
 echo "Compute VAD done."

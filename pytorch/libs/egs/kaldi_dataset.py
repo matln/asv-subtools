@@ -7,6 +7,9 @@ import sys
 import copy
 import logging
 import numpy as np
+import locale
+# 和 kaldi 排序方式一致
+locale.setlocale(locale.LC_ALL, "C")
 
 import libs.support.kaldi_io as kaldi_io
 # import libs.support.kaldi_common as kaldi_common
@@ -83,8 +86,7 @@ class KaldiDataset():
 
     def load_data_(self):
         if not os.path.exists(self.data_dir):
-            raise ValueError(
-                "The datadir {0} is not exist.".format(self.data_dir))
+            raise ValueError("The datadir {0} is not exist.".format(self.data_dir))
 
         if self.more:
             logger.info("Load mapping files form {0} as more as possible with more=True".format(
@@ -163,6 +165,7 @@ class KaldiDataset():
         kaldi_dataset = copy.deepcopy(self)
         kaldi_dataset.data_dir = None
 
+        # set 打乱了顺序
         if not isinstance(id_list, set):
             id_list = set(id_list)
 
@@ -182,11 +185,13 @@ class KaldiDataset():
                         this_file_dict = getattr(kaldi_dataset, attr)
                         if exclude:
                             new_file_dict = {
-                                k: list(set(v) - id_list) for k, v in this_file_dict.items()
+                                k: sorted(list(set(v) - id_list), key=lambda x: locale.strxfrm(x))
+                                for k, v in this_file_dict.items()
                                 if len(list(set(v) - id_list)) != 0}
                         else:
                             new_file_dict = {
-                                k: list(set(v) & id_list) for k, v in this_file_dict.items()
+                                k: sorted(list(set(v) & id_list), key=lambda x: locale.strxfrm(x))
+                                for k, v in this_file_dict.items()
                                 if len(list(set(v) & id_list)) != 0}
                         setattr(kaldi_dataset, attr, new_file_dict)
                     else:
@@ -245,7 +250,7 @@ class KaldiDataset():
         np.random.seed(seed)
 
         if requirement == "--per-spk":
-            logger.info("Subset KaldiDatqaset to {0} utts with --per-spk requirement".format(num_utts * len(self.spk2utt)))
+            logger.info("Subset KaldiDataset to {0} utts with --per-spk requirement".format(num_utts * len(self.spk2utt)))
             utt_id_list = []
             for spk, utts in self.spk2utt.items():
                 if len(utts) >= num_utts:

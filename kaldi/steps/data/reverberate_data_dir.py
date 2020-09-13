@@ -150,7 +150,7 @@ def pick_item_with_probability(x):
     assert False, "Shouldn't get here as the accumulated probability should always equal to 1"
 
 
-def parse_file_to_dict(file, assert2fields = False, value_processor = None):
+def parse_file_to_dict(file, assert2fields=False, value_processor=None):
     """ This function parses a file and pack the data into a dictionary
         It is useful for parsing file like wav.scp, utt2spk, text...etc
     """

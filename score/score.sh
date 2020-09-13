@@ -43,6 +43,10 @@ function get_params_for_score(){
 	
 	enrollname=$(readconf "name" $enroll_conf)
 	testname=$(readconf "name" $test_conf)
+  ########################################
+  enrollname=${enrollname//\//-}
+  testname=${testname//\//-}
+  ########################################
 	
 	input=$(readconf "vectorfile" $test_conf)
 	inputname=${input%.*}

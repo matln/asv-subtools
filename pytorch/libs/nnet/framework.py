@@ -33,21 +33,27 @@ def for_extract_embedding(maxChunk=10000, isMatrix=True):
                 input = utils.to_device(self, input)
                 num_frames = input.shape[2]
                 num_split = (num_frames + maxChunk - 1) // maxChunk
-                split_size = num_frames // num_split
+                # 最后一个chunk size会超过maxChunk吗？会
+                # 令S=num_frames/num_split, S'=num_frames//num_split, N=num_split
+                # 则(S-1)(N-1)<S'(N-1)<=S(N-1)
+                #   SN-S(N-1)<=SN-S'(N-1)<SN-(S-1)(N-1)
+                #   S<=SN-S'(N-1)<S+N-1
+                # 假如num_frames=999, maxChunk=100, 则num_split=10，S'=99，最后一个chunk为108
+                # 所以改为向上取整
+                # split_size = num_frames // num_split
+                split_size = (num_frames - 1) // num_split + 1
 
                 offset = 0
                 embedding_stats = 0.
                 for i in range(0, num_split - 1):
                     # [1, emd-dim, 1]
-                    this_embedding = function(
-                        self, input[:, :, offset:offset + split_size])
+                    this_embedding = function(self, input[:, :, offset:offset + split_size])
                     offset += split_size
                     embedding_stats += split_size * this_embedding
 
                 last_embedding = function(self, input[:, :, offset:])
 
-                embedding = (embedding_stats + (
-                    num_frames - offset) * last_embedding) / num_frames
+                embedding = (embedding_stats + (num_frames - offset) * last_embedding) / num_frames
 
                 if train_status:
                     self.train()

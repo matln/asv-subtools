@@ -12,12 +12,16 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 import torch.distributed as dist
 
+
+# subtools = '/data/lijianchen/workspace/sre/subtools'
+# sys.path.insert(0, '{}/pytorch'.format(subtools))
 import libs.support.utils as utils
 import libs.support.kaldi_io as kaldi_io
 from libs.support.prefetch_generator import BackgroundGenerator
 
 # There are specaugment and cutout etc..
 from .augmentation import *
+# from augmentation import *
 
 # Logger
 logger = logging.getLogger(__name__)
@@ -60,6 +64,8 @@ class ChunkEgs(Dataset):
     def __getitem__(self, index):
         if not self.io_status:
             return 0., 0.
+        # print(index)
+        # print(self.data_frame[index][0])
 
         chunk = [int(self.data_frame[index][2]),
                  int(self.data_frame[index][3])]
@@ -178,7 +184,8 @@ class BaseBunch():
                                                sampler=train_sampler)
         else:
             self.train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers,
-                                           pin_memory=pin_memory, drop_last=drop_last, sampler=train_sampler)
+                                           pin_memory=pin_memory, drop_last=drop_last,
+                                           sampler=train_sampler)
 
         self.num_batch_train = len(self.train_loader)
 
@@ -270,3 +277,15 @@ def _get_info_from_egsdir(egsdir):
         return feat_dim, num_targets, train_csv, valid_csv
     else:
         raise ValueError("Expected dir {0} to exist.".format(egsdir + "/info"))
+
+if __name__ == '__main__':
+    data_loader_params_dict = {'batch_size': 5, 'shuffle': False, 'num_workers': 0}
+    bunch, info = BaseBunch.get_bunch_from_egsdir(
+        "../../../../voxceleb/exp/egs/mfcc_23_pitch-voxceleb1_train_aug-speaker_balance",
+        data_loader_params_dict=data_loader_params_dict)
+    for i, (data, label) in enumerate(bunch.train_loader):
+        print('-----------')
+        if i > 2:
+            break
+        # print(data.size())
+        # print(label.size())

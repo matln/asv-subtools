@@ -109,8 +109,7 @@ class TdnnAffine(torch.nn.Module):
 
         # Do not use conv1d.padding for self.left_context + self.right_context != 0 case.
         if self.pad:
-            inputs = F.pad(inputs, (-self.left_context,
-                                    self.right_context), mode="constant", value=0)
+            inputs = F.pad(inputs, (-self.left_context, self.right_context), mode="constant", value=0)
 
         assert inputs.shape[2] >= self.tot_context
 
@@ -296,19 +295,16 @@ class _BaseActivationBatchNorm(torch.nn.Module):
             # For speaker recognition, relu-bn seems better than bn-relu. And w/o affine (scale and shift) of bn is
             # also better than w/ affine.
             self.after_forward = self._relu_bn_forward
-            self.activation = Nonlinearity(
-                default_params["nonlinearity"], **default_params["nonlinearity_params"])
+            # Assume the activation function has no parameters
+            self.activation = Nonlinearity(default_params["nonlinearity"], **default_params["nonlinearity_params"])
             if default_params["bn"]:
-                self.batchnorm = torch.nn.BatchNorm1d(
-                    output_dim, **default_params["bn_params"])
+                self.batchnorm = torch.nn.BatchNorm1d(output_dim, **default_params["bn_params"])
         else:
             # BN-ReLU
             self.after_forward = self._bn_relu_forward
             if default_params["bn"]:
-                self.batchnorm = torch.nn.BatchNorm1d(
-                    output_dim, **default_params["bn_params"])
-            self.activation = Nonlinearity(
-                default_params["nonlinearity"], **default_params["nonlinearity_params"])
+                self.batchnorm = torch.nn.BatchNorm1d(output_dim, **default_params["bn_params"])
+            self.activation = Nonlinearity(default_params["nonlinearity"], **default_params["nonlinearity_params"])
 
         if default_params["special_init"] and self.affine is not None:
             if default_params["nonlinearity"] in ["relu", "leaky_relu", "tanh", "sigmoid"]:
@@ -329,11 +325,13 @@ class _BaseActivationBatchNorm(torch.nn.Module):
         if self.batchnorm is not None:
             x = self.batchnorm(x)
         if self.activation is not None:
+            # Assume the activation function has no parameters
             x = self.activation(x)
         return x
 
     def _relu_bn_forward(self, x):
         if self.activation is not None:
+            # Assume the activation function has no parameters
             x = self.activation(x)
         if self.batchnorm is not None:
             x = self.batchnorm(x)

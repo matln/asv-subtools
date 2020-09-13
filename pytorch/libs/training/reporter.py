@@ -36,9 +36,10 @@ class Reporter():
             self.report_interval_iters = default_params["report_interval_iters"]
 
         if default_params["use_tensorboard"]:
-            from tensorboardX import SummaryWriter
+            # from tensorboardX import SummaryWriter
+            from torch.utils.tensorboard import SummaryWriter
             model_name = os.path.basename(self.trainer.params["model_dir"])
-            time_string = time.strftime('%Y-%m-%d-%H-%M-%S',time.localtime(time.time()))
+            time_string = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
             self.board_writer = SummaryWriter("{}/log/{}-{}-tensorboard".format(self.trainer.params["model_dir"], model_name, time_string))
         else:
             self.board_writer = None

@@ -107,7 +107,7 @@ class ChunkSamples():
 
                 num_chunks = len(chunk_selected)
                 if num_chunks < num_chunks_selected:
-                    # valid is not validation
+                    # valid rather than validation
                     # Make up the insufficient chunks
                     valid_utts = [utt for utt in self.dataset.spk2utt[key]
                                   if self.dataset.utt2num_frames[utt] >= self.chunk_size]
