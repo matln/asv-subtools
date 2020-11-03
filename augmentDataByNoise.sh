@@ -35,10 +35,23 @@ fi
 
 data=$1
 
+[ ! -d "$data" ] && echo "Expected datadir $datadir to be exist" && exit 1
+
+for file in utt2spk wav.scp; do
+  [ ! -f $data/$file ] && echo "Expected $data/$file to exist." && exit 1
+done
+
 [ $# -eq 2 ] && aug_data_dir=$2
 
 [[ "$reverb" != "true" && "$noise" != "true" && "$music" != "true" && "$babble" != "true" ]] && \
   echo "[exit] There should be one augmentation type form [reverb|noise|music|babble]" && exit 1
+
+utt_num=$(cat $data/utt2spk | wc -l | awk '{print $1}')
+for file in reco2dur utt2num_frames feats.scp; do
+  num=$(cat $data/$file | wc -l | awk '{print $1}')
+  [ $num -ne $utt_num ] && echo "[Note] The num of $data/$file is not equal to $data/utt2spk ($num/$utt_num), so mv $data/$file to $data/$file.lost." && \
+                           mv -f $data/$file $data/$file.lost
+done
 
 if [ ! -f "$data"/reco2dur ]; then
 	echo "...$data/reco2dur is not exist, so get it automatically..."
@@ -181,7 +194,7 @@ fi
 if [ $num -gt 1 ];then
 	echo "...combine additive aug data to $additive_aug_data..."
   # additive_aug_data: data/mfcc_23_pitch/augment/voxceleb1o2_train_reverb_noise_music_babble
-	${SUBTOOLS}/kaldi/utils/combine_data.sh $additive_aug_data $all_data
+	[[ ! -d $additive_aug_data || $force == "true" ]] && ${SUBTOOLS}/kaldi/utils/combine_data.sh $additive_aug_data $all_data
 fi
 
 # 借助 bc 进行数值计算
@@ -189,8 +202,10 @@ bc_path=$(command -v bc)
 [ "$bc_path" == "" ] && echo -e "[exit] No bc in ($PATH)\nPlease install bc by 'yum install bc'." && exit 1
 
 num_origin_utts=$(wc -l $data/reco2dur | awk '{print $1}')
-[ $(echo "$factor - $num" | bc) -gt 0 ] && factor=$num # Get min
-num_additive_utts=$(echo "$num_origin_utts * $factor / 1" | bc)
+# Use awk to replace bc to compute float value.
+status=$(echo $fator $num | awk '{if($1-$2>0){print 1}else{print 0}}')
+[ $status -eq 1 ] && factor=$num # Get min
+num_additive_utts=$(echo $num_origin_utts $factor | awk '{print int($1*$2)}')
 
 [ $num_additive_utts -eq 0 ] && "[exit] The factor $factor is too small" && exit 1
 
@@ -200,7 +215,8 @@ if [ $# -eq 2 ]; then
 	if [ $factor -ne $num ];then
 			echo "...get subset from $additive_aug_data to ${additive_aug_data}_$num_additive_utts..."
       # 使用类似于折半查找的方式，使得选择的子集尽可能平均。(utils/subset_scp.pl)
-			${SUBTOOLS}/kaldi/utils/subset_data_dir.sh $additive_aug_data $num_additive_utts ${additive_aug_data}_$num_additive_utts
+			[ ! -d ${additive_aug_data}_$num_additive_utts ] && \
+        "${SUBTOOLS}"/kaldi/utils/subset_data_dir.sh $additive_aug_data $num_additive_utts ${additive_aug_data}_$num_additive_utts
 			subset_data=${additive_aug_data}_$num_additive_utts
 	fi
 
@@ -208,7 +224,7 @@ if [ $# -eq 2 ]; then
   # aug_data_dir: data/mfcc_23_pitch/voxceleb1o2_train_aug
   # data: data/mfcc_23_pitch/voxceleb1o2_train/ 
   # 如果只传入1个参数，也就是$aug_data_dir==""，则用$subset_data覆盖$data目录
-	${SUBTOOLS}/kaldi/utils/combine_data.sh $aug_data_dir $data $subset_data
+	[ ! -d $aug_data_dir ] && ${SUBTOOLS}/kaldi/utils/combine_data.sh $aug_data_dir $data $subset_data
 fi
 
 echo "All done."

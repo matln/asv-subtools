@@ -51,7 +51,7 @@ function get_params_for_score(){
 	input=$(readconf "vectorfile" $test_conf)
 	inputname=${input%.*}
 	final_file=$(readconf "final" $test_conf)
-	suffix=$(echo ${final_file%.*} | sed 's/^'"$inputname"'//g')
+	suffix=$(echo ${final_file%.*} | sed 's/^'"$inputname"'//g;'s/spk_xvector_mean//g'')
 
 	extra_name=${extra_name:+_$extra_name}
 	

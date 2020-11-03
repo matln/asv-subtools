@@ -2,6 +2,7 @@
 
 # Copyright xmuspeech (Author:Snowdar 2020-01-22)
 
+nj=20
 aug_suffixes="reverb noise music babble"
 nj=16
 outdir=features
