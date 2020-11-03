@@ -1,8 +1,13 @@
-
 # -*- coding:utf-8 -*-
 
 # Copyright xmuspeech (Author: Snowdar 2020-02-12)
 # Apache 2.0
+
+# Set egs_params.aug:"Specaugment" for InSpecAug
+#
+# Set model_params for AM:
+#    tdnn7_params.nonlinearity:"", tdnn7_params.bn:False, margin_loss:True, 
+#    use_step:True, step_params.m:True
 
 import sys, os
 import logging
@@ -24,7 +29,7 @@ import libs.support.kaldi_common as kaldi_common
 import libs.support.utils as utils
 from  libs.support.logging_stdout import patch_logging_stream
 
-"""A launcher script with python version (Snowdar's launcher to do experiments w.r.t resnet-xvector.py).
+"""A launcher script with python version (Snowdar's launcher to do experiments w.r.t snowdar-xvector.py).
 Python version is gived (rather than Shell) to have more freedom, such as decreasing limitation of parameters that transfering 
 them to python from shell.
 
@@ -84,7 +89,7 @@ logger = logging.getLogger('libs')
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s [ %(pathname)s:%(lineno)s - "
+formatter = logging.Formatter("%(asctime)s [%(pathname)s:%(lineno)s - "
                               "%(funcName)s - %(levelname)s ]\n#### %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -157,19 +162,18 @@ endstage = min(4, args.endstage)
 train_stage = max(-1, args.train_stage)
 ##--------------------------------------------------##
 ## Preprocess options
-force_clear = args.force_clear
+force_clear=args.force_clear
 preprocess_nj = 20
-compress = False
 cmn = True # Traditional cmn process.
 
 chunk_size = 200
 limit_utts = 8
 
-sample_type = "sequential" # sequential | speaker_balance
-chunk_num = -1 # -1 means using scale, 0 means using max and >0 means itself.
-overlap = 0.1
-scale = 1.5 # Get max / num_spks * scale for every speaker.
-valid_split_type = "--total-spk" # --total-spk or --default
+sample_type="speaker_balance" # sequential | speaker_balance
+chunk_num=-1 # -1 means using scale, 0 means using max and >0 means itself.
+overlap=0.1
+scale=1.5 # Get max / num_spks * scale for every speaker.
+valid_split_type="--total-spk" # --total-spk or --default
 valid_utts = 1024
 valid_chunk_num_every_utt = 2
 ##--------------------------------------------------##
@@ -180,8 +184,8 @@ gpu_id = args.gpu_id # If NULL, then it will be auto-specified.
 run_lr_finder = args.run_lr_finder
 
 egs_params = {
-    "aug":None, # None or specaugment. If use aug, you should close the aug_dropout which is in model_params.
-    "aug_params":{"frequency":0.2, "frame":0.2, "rows":4, "cols":4, "random_rows":True,"random_cols":True}
+    "aug":"specaugment", # None or specaugment. If use aug, you should close the aug_dropout which is in model_params.
+    "aug_params":{"frequency":0.1, "frame":0.1, "rows":2, "cols":2, "random_rows":True,"random_cols":True}
 }
 
 loader_params = {
@@ -195,56 +199,40 @@ loader_params = {
 }
 
 # Difine model_params by model_blueprint w.r.t your model's __init__(model_params).
-model_params = { 
-    "aug_dropout":0., "tail_dropout":0.,
-    "training":True, "extracted_embedding":"far",
-    "resnet_params":{
-            "head_conv":True, "head_conv_params":{"kernel_size":3, "stride":1, "padding":1},
-            "head_maxpool":False, "head_maxpool_params":{"kernel_size":3, "stride":2, "padding":1},
-            "block":"BasicBlock", # BasicBlock, Bottleneck
-            "layers":[3, 4, 6, 3],
-            "planes":[32, 64, 128, 256],
-            "convXd":2,
-            "norm_layer_params":{"momentum":0.5, "affine":True},
-            "full_pre_activation":True,
-            "zero_init_residual":False},
+model_params = {
+    "extend":False, "SE":False, "se_ratio":4, "training":True, "extracted_embedding":"far",
+
+    "aug_dropout":0., "hidden_dropout":0., 
+    "dropout_params":{"type":"default", "start_p":0., "dim":2, "method":"uniform",
+                      "continuous":False, "inplace":True},
+
+    "tdnn_layer_params":{"nonlinearity":'relu', "nonlinearity_params":{"inplace":True},
+                         "bn-relu":False, 
+                         "bn":True, 
+                         "bn_params":{"momentum":0.5, "affine":False, "track_running_stats":True}},
 
     "pooling":"statistics", # statistics, lde, attentive, multi-head, multi-resolution
-    "pooling_params":{"num_head":1,
+    "pooling_params":{"num_nodes":1500,
+                      "num_head":1,
                       "share":True,
                       "affine_layers":1,
                       "hidden_size":64,
                       "context":[0],
-                      "stddev":True,
                       "temperature":False, 
                       "fixed":True
                       },
+    "tdnn6":True, 
+    "tdnn7_params":{"nonlinearity":"default", "bn":True},
 
-    "fc1":True,
-    "fc1_params":{
-            "nonlinearity":'relu', "nonlinearity_params":{"inplace":True},
-            "bn-relu":False, 
-            "bn":True, 
-            "bn_params":{"momentum":0.5, "affine":True, "track_running_stats":True}},
-
-    "fc2_params":{
-            "nonlinearity":'relu', "nonlinearity_params":{"inplace":True},
-            "bn-relu":False, 
-            "bn":True, 
-            "bn_params":{"momentum":0.5, "affine":True, "track_running_stats":True}},
-
-    "margin_loss":False,
-    "margin_loss_params":{
-            "method":"am", "m":0.2, "feature_normalize":True, 
-            "s":30, "mhe_loss":False, "mhe_w":0.01},
-
-    "use_step":False,
-    "step_params":{
-            "T":None,
-            "m":False, "lambda_0":0, "lambda_b":1000, "alpha":5, "gamma":1e-4,
-            "s":False, "s_tuple":(30, 12), "s_list":None,
-            "t":False, "t_tuple":(0.5, 1.2), 
-            "p":False, "p_tuple":(0.5, 0.1)}
+    "margin_loss":True, 
+    "margin_loss_params":{"method":"am", "m":0.2, "feature_normalize":True, 
+                          "s":30, "mhe_loss":False, "mhe_w":0.01},
+    "use_step":True, 
+    "step_params":{"T":None,
+                   "m":True, "lambda_0":0, "lambda_b":1000, "alpha":5, "gamma":1e-4,
+                   "s":False, "s_tuple":(30, 12), "s_list":None,
+                   "t":False, "t_tuple":(0.5, 1.2), 
+                   "p":False, "p_tuple":(0.5, 0.1)}
 }
 
 optimizer_params = {
@@ -253,45 +241,39 @@ optimizer_params = {
     "beta1":0.9,
     "beta2":0.999,
     "beta3":0.999,
-    "weight_decay":3e-1,  # Should be large for decouped weight decay (adamW) and small for L2 regularization (sgd, adam).
+    "weight_decay":1e-1,  # Should be large for decouped weight decay (adamW) and small for L2 regularization (sgd, adam).
     "lookahead.k":5,
     "lookahead.alpha":0.,  # 0 means not using lookahead and if used, suggest to set it as 0.5.
     "gc":False # If true, use gradient centralization.
 }
 
 lr_scheduler_params = {
-    "name":"reduceP", # warmR or reduceP
+    "name":"warmR",
     "warmR.lr_decay_step":0, # 0 means decay after every epoch and 1 means every iter. 
-    "warmR.T_max":3,
+    "warmR.T_max":5,
     "warmR.T_mult":2,
     "warmR.factor":1.0,  # The max_lr_decay_factor.
     "warmR.eta_min":4e-8,
-    "warmR.log_decay":False,
-    "reduceP.metric":'valid_acc',
-    "reduceP.check_interval":0, # 0 means check metric after every epoch and 1 means every iter. 
-    "reduceP.factor":0.1,  # scale of lr in every times.
-    "reduceP.patience":1, 
-    "reduceP.threshold":0.0001, 
-    "reduceP.cooldown":0, 
-    "reduceP.min_lr":0
+    "warmR.log_decay":False
 }
 
-epochs = 21 # Total epochs to train. It is important.
+epochs = 15 # Total epochs to train. It is important.
 
 report_times_every_epoch = None
 report_interval_iters = 100 # About validation computation and loss reporting. If report_times_every_epoch is not None, 
                             # then compute report_interval_iters by report_times_every_epoch.
+stop_early = False
 suffix = "params" # Used in saved model file.
 ##--------------------------------------------------##
 ## Other options
-exist_model = ""  # Use it in transfer learning.
+exist_model=""  # Use it in transfer learning.
 ##--------------------------------------------------##
 ## Main params
-traindata = "data/mfcc_23_pitch/voxceleb1_train_aug"
-egs_dir = "exp/egs/mfcc_23_pitch_voxceleb1_train_aug" + "_" + sample_type
+traindata="data/mfcc_23_pitch/voxceleb1o2_train_aug"
+egs_dir="exp/egs/mfcc_23_pitch_voxceleb1o2_train_aug" + "_" + sample_type
 
-model_blueprint = "subtools/pytorch/model/resnet-xvector.py"
-model_dir = "exp/standard_voxceleb1"
+model_blueprint="subtools/pytorch/model/snowdar-xvector.py"
+model_dir="exp/standard_voxceleb1o2_spec_am"
 ##--------------------------------------------------##
 ##
 ######################################################### START #########################################################
@@ -299,17 +281,15 @@ model_dir = "exp/standard_voxceleb1"
 #### Set seed
 utils.set_all_seed(1024)
 ##
+#### Set sleep time for a rest
+# Use it to run a launcher with a countdown function when there are no extra GPU memory 
+# but you really want to go to bed and know when the GPU memory will be free.
+if args.sleep > 0: time.sleep(args.sleep)
+##
 #### Init environment
 # It is used for multi-gpu training if used (number of gpu-id > 1).
 # And it will do nothing for single-GPU training.
 utils.init_multi_gpu_training(args.gpu_id, args.multi_gpu_solution, args.port)
-##
-#### Set sleep time for a rest
-# Use it to run a launcher with a countdown function when there are no extra GPU memory 
-# but you really want to go to bed and know when the GPU memory will be free.
-if args.sleep > 0 and utils.is_main_training(): 
-    logger.info("This launcher will sleep {}s before starting...".format(args.sleep))
-    time.sleep(args.sleep)
 ##
 #### Auto-config params
 # If multi-GPU used, it will auto-scale learning rate by multiplying number of processes.
@@ -322,16 +302,16 @@ if lr_scheduler_params["name"] == "warmR" and model_params["use_step"]:
 if stage <= 2 and endstage >= 0 and utils.is_main_training():
     # Here only give limited options because it is not convenient.
     # Suggest to pre-execute this shell script to make it freedom and then continue to run this launcher.
-    kaldi_common.execute_command("bash subtools/pytorch/pipeline/preprocess_to_egs.sh "
+    kaldi_common.execute_command("sh subtools/pytorch/pipeline/preprocess_to_egs.sh "
                                  "--stage {stage} --endstage {endstage} --valid-split-type {valid_split_type} "
                                  "--nj {nj} --cmn {cmn} --limit-utts {limit_utts} --min-chunk {chunk_size} --overlap {overlap} "
                                  "--sample-type {sample_type} --chunk-num {chunk_num} --scale {scale} --force-clear {force_clear} "
-                                 "--valid-num-utts {valid_utts} --valid-chunk-num {valid_chunk_num_every_utt} --compress {compress} "
+                                 "--valid-num-utts {valid_utts} --valid-chunk-num {valid_chunk_num_every_utt} "
                                  "{traindata} {egs_dir}".format(stage=stage, endstage=endstage, valid_split_type=valid_split_type, 
                                  nj=preprocess_nj, cmn=str(cmn).lower(), limit_utts=limit_utts, chunk_size=chunk_size, overlap=overlap, 
                                  sample_type=sample_type, chunk_num=chunk_num, scale=scale, force_clear=str(force_clear).lower(), 
-                                 valid_utts=valid_utts, valid_chunk_num_every_utt=valid_chunk_num_every_utt, compress=str(compress).lower(),
-                                 traindata=traindata, egs_dir=egs_dir))
+                                 valid_utts=valid_utts, valid_chunk_num_every_utt=valid_chunk_num_every_utt, traindata=traindata, 
+                                 egs_dir=egs_dir))
 
 #### Train model
 if stage <= 3 <= endstage:
@@ -347,7 +327,7 @@ if stage <= 3 <= endstage:
     # Another way: import the model.py in this python directly, but it is not friendly to the shell script of extracting and
     # I don't want to change anything about extracting script when the model.py is changed.
     model_py = utils.create_model_from_py(model_blueprint)
-    model = model_py.ResNetXvector(info["feat_dim"], info["num_targets"], **model_params)
+    model = model_py.Xvector(info["feat_dim"], info["num_targets"], **model_params)
 
     # If multi-GPU used, then batchnorm will be converted to synchronized batchnorm, which is important 
     # to make peformance stable. 
@@ -366,11 +346,11 @@ if stage <= 3 <= endstage:
     # Package(Elements:dict, Params:dict}. It is a key parameter's package to trainer and model_dir/config/.
     package = ({"data":bunch, "model":model, "optimizer":optimizer, "lr_scheduler":lr_scheduler},
             {"model_dir":model_dir, "model_blueprint":model_blueprint, "exist_model":exist_model, 
-            "start_epoch":train_stage, "epochs":epochs, "use_gpu":use_gpu, "gpu_id":gpu_id, "max_change":10.,
+            "start_epoch":train_stage, "epochs":epochs, "use_gpu":use_gpu, "gpu_id":gpu_id, 
             "benchmark":benchmark, "suffix":suffix, "report_times_every_epoch":report_times_every_epoch,
             "report_interval_iters":report_interval_iters, "record_file":"train.csv"})
 
-    trainer = trainer.SimpleTrainer(package)
+    trainer = trainer.SimpleTrainer(package, stop_early=stop_early)
 
     if run_lr_finder and utils.is_main_training():
         trainer.run_lr_finder("lr_finder.csv", init_lr=1e-8, final_lr=10., num_iters=2000, beta=0.98)
@@ -387,7 +367,7 @@ if stage <= 4 <= endstage and utils.is_main_training():
 
     to_extracted_positions = ["far", "near"] # Define this w.r.t extracted_embedding param of model_blueprint.
     to_extracted_data = ["voxceleb1_train_aug", "voxceleb1_test"] # All dataset should be in data_root/prefix.
-    to_extracted_epochs = ["21"] # It is model's name, such as 10.params or final.params (suffix is w.r.t package).
+    to_extracted_epochs = ["15"] # It is model's name, such as 10.params or final.params (suffix is w.r.t package).
 
     nj = 10
     force = False
@@ -425,7 +405,7 @@ if stage <= 4 <= endstage and utils.is_main_training():
                     # Use a well-optimized shell script (with multi-processes) to extract xvectors.
                     # Another way: use subtools/splitDataByLength.sh and subtools/pytorch/pipeline/onestep/extract_embeddings.py 
                     # with python's threads to extract xvectors directly, but the shell script is more convenient.
-                    kaldi_common.execute_command("bash subtools/pytorch/pipeline/extract_xvectors_for_pytorch.sh "
+                    kaldi_common.execute_command("sh subtools/pytorch/pipeline/extract_xvectors_for_pytorch.sh "
                                                 "--model {model_file} --cmn {cmn} --nj {nj} --use-gpu {use_gpu} --gpu-id '{gpu_id}' "
                                                 " --force {force} --nnet-config config/{extract_config} "
                                                 "{model_dir} {datadir} {outdir}".format(model_file=model_file, cmn=str(cmn).lower(), nj=nj,
@@ -435,14 +415,6 @@ if stage <= 4 <= endstage and utils.is_main_training():
         if not isinstance(e, KeyboardInterrupt):
             traceback.print_exc()
         sys.exit(1)
-
-
-
-#### Congratulate! All done.
-##
-#### Report EER% on voxceleb1.test [ back-end = lda256 + normalization + plda ]
-
-
 
 
 

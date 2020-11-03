@@ -273,7 +273,12 @@ class SimpleTrainer(_BaseTrainer):
             model = self.elements["model"]
             model_forward = self.elements["model_forward"]  # See init_training.
             lr_scheduler = self.elements["lr_scheduler"]
-            last_lr = self.elements["optimizer"].state_dict()['param_groups'][0]['lr']
+            base_optimizer = self.elements["optimizer"]
+
+            # For lookahead.
+            if getattr(base_optimizer, "optimizer", None) is not None:
+                base_optimizer = base_optimizer.optimizer
+            last_lr = base_optimizer.state_dict()['param_groups'][0]['lr']
 
             if utils.is_main_training():
                 logger.info("Training will run for {0} epochs.".format(epochs))
@@ -321,7 +326,7 @@ class SimpleTrainer(_BaseTrainer):
                         if isinstance(lr_scheduler, LRSchedulerWrapper):
                             lr_scheduler.step(**lr_scheduler_params)
                             if lr_scheduler.name == "reduceP" and utils.is_main_training():
-                                current_lr = self.elements["optimizer"].state_dict()['param_groups'][0]['lr']
+                                current_lr = base_optimizer.state_dict()['param_groups'][0]['lr']
                                 if current_lr < last_lr:
                                     last_lr = current_lr
                                     self.save_model(from_epoch=False)

@@ -2,6 +2,7 @@
 
 # Copyright xmuspeech (Author:Snowdar 2019-04-25)
 
+vad=true
 outputdir= # If NULL, default $datadir/split*
 force=false # If true, split again whatever
 
@@ -21,7 +22,7 @@ nj=$2
 
 [ ! -d $data ] && echo "[exit] No such dir $data." && exit 1
 
-for x in feats.scp vad.scp; do
+for x in feats.scp; do
   [ ! -f $data/$x ] && echo "[exit] expect $data/$x to exist." && exit 1
 done
 
@@ -30,17 +31,23 @@ done
 
 echo "Split $data with $nj nj according to length-order ..."
 
-${SUBTOOLS}/get_utt2num_frames_from_vad.sh --nosil true --nj $nj $data
+if [ "$vad" == "true" ];then
+  utt2num_frames=utt2num_frames.nosil
+  ${SUBTOOLS}/get_utt2num_frames_from_vad.sh --nosil true --nj $nj $data 
+else
+  utt2num_frames=utt2num_frames
+  ${SUBTOOLS}/get_utt2num_frames_from_feats.sh $data
+fi
 
 mkdir -p $outputdir
 
-sort -r -n -k 2 $data/utt2num_frames.nosil > $outputdir/utt2num_frames.nosil.order
+sort -r -n -k 2 $data/$utt2num_frames > $outputdir/$utt2num_frames.order
 
-tot_num=$(wc -l $outputdir/utt2num_frames.nosil.order | awk '{print $1}')
+tot_num=$(wc -l $outputdir/$utt2num_frames.order | awk '{print $1}')
 
 [[ "$tot_num" -lt "$nj" ]] && echo "nj $nj is too large for $tot_num utterances." && exit 1
 
-num_frames=$(awk '{a=a+$2}END{print a}' $outputdir/utt2num_frames.nosil.order ) 
+num_frames=$(awk '{a=a+$2}END{print a}' $outputdir/$utt2num_frames.order ) 
 
 average_frames=$num_frames
 [ "$nj" != 1 ] && average_frames=$[$num_frames/$nj + 1]
@@ -111,7 +118,3 @@ done
 rm -rf $outputdir/*/.backup
 
 echo "Split done."
-
-
-
-

@@ -7,6 +7,7 @@ nj=16
 cmd="run.pl"
 stage=1
 cmn=true
+vad=false
 cmn_window=300
 model=final.params
 split_type=order
@@ -82,8 +83,8 @@ if [ "$sliding" == "true" ]; then
   data=$sub_data
 fi
 
-for f in $srcdir/$model $srcdir/$nnet_config $data/feats.scp $data/vad.scp; do
-  [ ! -f $f ] && echo "No such file $f" && exit 1
+for f in $srcdir/$model $srcdir/$nnet_config $data/feats.scp; do
+  [ ! -f $f ] && echo "No such file $f" && exit 1;
 done
 
 case $split_type in
@@ -92,7 +93,7 @@ case $split_type in
       sdata=$data/split${nj}utt/JOB
       ;;
     order)
-      "${SUBTOOLS}"/splitDataByLength.sh $data $nj
+      "${SUBTOOLS}"/splitDataByLength.sh --vad $vad $data $nj
       sdata=$data/split${nj}order/JOB
       ;;
     *)
@@ -104,11 +105,19 @@ echo "$0: extracting xvectors for $data"
 
 
 # Set up the features
-if [ "$cmn" == "true" ];then
-  feats="ark:apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window \
-         scp:${sdata}/feats.scp ark:- | select-voiced-frames ark:- scp,s,cs:${sdata}/vad.scp ark:- |"
+if [ "$cmn" == "true" ]; then
+  if [ "$vad" == "true" ]; then
+    feats="ark:apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window \
+           scp:${sdata}/feats.scp ark:- | select-voiced-frames ark:- scp,s,cs:${sdata}/vad.scp ark:- |"
+  else
+    feats="ark:apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window scp:${sdata}/feats.scp ark:- |"
+  fi
 else
-  feats="ark:select-voiced-frames scp:${sdata}/feats.scp scp,s,cs:${sdata}/vad.scp ark:- |"
+  if [ "$vad" == "true" ];then
+    feats="ark:select-voiced-frames scp:${sdata}/feats.scp scp,s,cs:${sdata}/vad.scp ark:- |"
+  else
+    feats="ark:copy-feats scp:${sdata}/feats.scp ark:- |"
+  fi
 fi
   output="ark:| copy-vector ark:- ark,scp:$dir/xvector.JOB.ark,$dir/xvector.JOB.scp"
 
