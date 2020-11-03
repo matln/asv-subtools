@@ -140,14 +140,17 @@ if __name__ == '__main__':
   scores = sys.argv[3]
 
   lang2lang_id, utt2lang_id, lang_num, trial_list = get_langid_dict(trials)
+  print(lang_num)
   if form == '-pairs':
     pairs, min_score, max_score = process_pair_scores(scores, lang2lang_id, utt2lang_id, lang_num, trial_list) 
   else:
     pairs, min_score, max_score = process_matrix_scores(scores, lang2lang_id, utt2lang_id, lang_num, trial_list)
 
   threshhold_bins = 20
-  p_target = 0.5
+  ##################################################
+  p_target = 0.01
+  ##################################################
   cavgs, min_cavg = get_cavg(pairs, lang_num, min_score, max_score, threshhold_bins, p_target)
 
-  print "Cavg",round(min_cavg, 4)
+  print("Cavg", round(min_cavg, 4))
 

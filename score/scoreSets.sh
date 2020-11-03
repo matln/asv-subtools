@@ -160,7 +160,7 @@ check "$plda_process" "lda submean whiten norm trainplda" plda_process
 check "$aplda_process" "lda submean whiten norm trainaplda" aplda_process
 
 check "$score" "cosine svm plda aplda gmm lr" score
-check "$metric" "eer Cavg" metric
+check "$metric" "eer Cavg minDCF" metric
 
 [ -f $vectordir/$enrollset/xvector.scp ] && vectortype=xvector && echo -e "[Auto find] Your vectortype is xvector\n"
 [ -f $vectordir/$enrollset/ivector.scp ] && vectortype=ivector && echo -e "[Auto find] Your vectortype is ivector\n"
@@ -334,8 +334,9 @@ for the_classfier in ${score//-/ }; do
   
   outscores="$outscores ${outname}.score"
   for the_metric in ${metric//-/ }; do
-    [ "$the_metric" == "eer" ] && "${SUBTOOLS}"/computeEER.sh --write-file "${outname}".eer $trials "${outname}".score && outsets="$outsets ${outname}.eer"
-    [ "$the_metric" == "Cavg" ] && "${SUBTOOLS}"/computeCavg.py -pairs $trials "${outname}".score > "${outname}".Cavg && \
+    [ "$the_metric" == "eer" ] && "${SUBTOOLS}"/score/metric/computeEER.sh --write-file "${outname}".eer $trials "${outname}".score && outsets="$outsets ${outname}.eer"
+		[ "$the_metric" == "minDCF" ] && python "${SUBTOOLS}"/score/metric/getEER_minDCF.py --scores "${outname}".score --trials $trials > "${outname}".minDCF
+    [ "$the_metric" == "Cavg" ] && "${SUBTOOLS}"/score/metric/computeCavg.py -pairs $trials "${outname}".score > "${outname}".Cavg && \
       cat "${outname}".Cavg && outsets="$outsets ${outname}.Cavg"
   done
 done

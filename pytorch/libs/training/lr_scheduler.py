@@ -21,6 +21,8 @@ class LRSchedulerWrapper():
         default_params = {
             "name": "warmR",
             "1cycle.learn_rate": 0.001,
+            "stepLR.step_size": 1,
+            "stepLR.gamma": 0.9,
             "warmR.T_max": 10,
             "warmR.T_mult": 1,
             "warmR.factor": 1.0,
@@ -48,6 +50,8 @@ class LRSchedulerWrapper():
         if self.name == "1cycle":
             # To do.
             self.lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(base_optimizer, **split_params["1cycle"])
+        elif self.name == "stepLR":
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(base_optimizer, **split_params["stepLR"])
         elif self.name == "warmR":
             # cosine annealing 的初始周期
             T_max = split_params["warmR"].pop("T_max")
@@ -91,6 +95,8 @@ class LRSchedulerWrapper():
                 self.lr_scheduler.step(training_point[0])
         elif self.name == "1cycle":
             self.lr_scheduler.step()
+        elif self.name == "stepLR":
+            self.lr_scheduler.step(training_point[0])
         elif self.name == "reduceP":
             # Sample a point in which the metrics of valid are computed and adjust learning rate at this point.
             if self.is_reduce_point(training_point):

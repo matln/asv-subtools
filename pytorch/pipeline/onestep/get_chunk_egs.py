@@ -87,6 +87,8 @@ def get_args():
     parser.add_argument("--seed", type=int, default=1024,
                         help="random seed")
 
+    parser.add_argument("--expected-files", type=str, default="utt2spk,spk2utt,feats.scp,utt2num_frames")
+
     # Main
     parser.add_argument("data_dir", metavar="data-dir",
                         type=str, help="A kaldi datadir.")
@@ -102,8 +104,11 @@ def get_args():
 
 def get_chunk_egs(args):
     logger.info("Load kaldi datadir {0}".format(args.data_dir))
-    dataset = KaldiDataset.load_data_dir(args.data_dir)
-    dataset.generate("utt2spk_int")
+    expected_files = args.expected_files.split(',')
+    dataset = KaldiDataset.load_data_dir(
+        args.data_dir, expected_files=expected_files)
+    if "utt2spk_int" not in expected_files:
+        dataset.generate("utt2spk_int")
 
     if args.valid_sample:
         logger.info("Split valid dataset from {0}".format(args.data_dir))

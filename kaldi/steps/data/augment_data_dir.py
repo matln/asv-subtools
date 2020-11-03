@@ -127,7 +127,16 @@ def augment_wav(utt, wav, dur, fg_snr_opts, bg_snr_opts, fg_noise_utts, bg_noise
             #    "input signal, the first t secs of the signal is trimmed, "
             #    "otherwise, the signal will be repeated to "
             #    "fulfill the duration specified.
-            noise = "wav-reverberate --duration=" + dur_str + " \"" + noise_wavs[noise_utt] + "\" - |"
+            # 这样有问题把，musan中music和speech每一个都那么长，有几百秒，每次都是取得前几秒
+            # noise = "wav-reverberate --duration=" + dur_str + " \"" + noise_wavs[noise_utt] + "\" - |"
+            if noise2dur[noise_utt] > dur + 0.1:
+                a = random.uniform(0, noise2dur[noise_utt] - dur - 0.1)
+                random_start = "{:.2f}".format(a)
+                noise = "sox {0} -t wav - trim {1} {2:.2f} | wav-reverberate --duration={3} - - |".format(
+                    noise_wavs[noise_utt], random_start, dur + 0.1, dur)
+            else:
+                noise = "wav-reverberate --duration=" + dur_str + " \"" + noise_wavs[noise_utt] + "\" - |"
+
             snr = random.choice(bg_snr_opts)
             snrs.append(snr)
             start_times.append(0)

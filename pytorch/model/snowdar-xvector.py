@@ -98,6 +98,7 @@ class Xvector(TopVirtualNnet):
         # Nnet.
         # Head
         self.mixup = Mixup(alpha=mixup_alpha) if mixup else None
+        # nnet.dropout.SpecAugment
         self.specaugment = SpecAugment(**specaugment_params) if specaugment else None
         self.aug_dropout = get_dropout_from_wrapper(aug_dropout, dropout_params)
         self.context_dropout = ContextDropout(p=context_dropout) if context_dropout > 0 else None

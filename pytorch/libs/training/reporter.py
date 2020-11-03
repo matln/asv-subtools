@@ -39,8 +39,11 @@ class Reporter():
             # from tensorboardX import SummaryWriter
             from torch.utils.tensorboard import SummaryWriter
             model_name = os.path.basename(self.trainer.params["model_dir"])
-            time_string = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
-            self.board_writer = SummaryWriter("{}/log/{}-{}-tensorboard".format(self.trainer.params["model_dir"], model_name, time_string))
+            # time_string = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+            time_string = self.trainer.params["time_string"]
+            # self.board_writer = SummaryWriter("{}/log/{}-{}-tensorboard".format(self.trainer.params["model_dir"], model_name, time_string))
+            self.board_writer = SummaryWriter("{}/log/{}-{}-tensorboard".format(
+                self.trainer.params["model_dir"], time_string, model_name))
         else:
             self.board_writer = None
 
@@ -158,7 +161,8 @@ class LRFinderReporter():
         if log_dir is not None:
             assert isinstance(log_dir, str)
             from tensorboardX import SummaryWriter
-            time_string = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+            # TODO
+            # time_string = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
             if comment is None:
                 comment = ""
             else:

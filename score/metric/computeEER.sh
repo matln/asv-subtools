@@ -19,10 +19,10 @@ trials=$1
 score=$2
 
 workout=`awk -v second=$second '{print $second}' $score | paste - <(awk -v first=$first '{print $first}' $trials ) | \
-awk '{if(NF==2){print $0}}' | compute-eer - `
+  awk '{if(NF==2){print $0}}' | compute-eer - `
 
-if [ "$write_file" != "" ];then
-echo "$workout" > $write_file
+if [ "$write_file" != "" ]; then
+  echo "$workout" > $write_file
 fi
 
 echo "EER% $workout"

@@ -628,8 +628,7 @@ class Mixup(torch.nn.Module):
             return inputs
 
         batch_size = inputs.shape[0]
-        self.lam = np.random.beta(
-            self.alpha, self.alpha) if self.alpha > 0. else 1.
+        self.lam = np.random.beta(self.alpha, self.alpha) if self.alpha > 0. else 1.
         # Shuffle the original index to generate the pairs, such as
         # Origin:           1 2 3 4 5
         # After Shuffling:  3 4 1 5 2

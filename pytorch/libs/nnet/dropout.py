@@ -24,14 +24,15 @@ class ContextDropout(torch.nn.Module):
         """
         @inputs: a 3-dimensional tensor (a batch), including [samples-index, frames-dim-index, frames-index]
         """
-        outputs = self.dropout2d(inputs.transpose(1,2)).transpose(1,2)
+        # 随机将某些帧整体置0，也就是在时间维，不是连续的
+        outputs = self.dropout2d(inputs.transpose(1, 2)).transpose(1, 2)
         return outputs
 
 
 class RandomDropout(torch.nn.Module):
     """Implement random dropout.
-    Reference: Bouthillier, X., Konda, K., Vincent, P., & Memisevic, R. (2015). 
-               Dropout as data augmentation. arXiv preprint arXiv:1506.08700. 
+    Reference: Bouthillier, X., Konda, K., Vincent, P., & Memisevic, R. (2015).
+               Dropout as data augmentation. arXiv preprint arXiv:1506.08700.
     """
     def __init__(self, p=0.5, start_p=0., dim=2, method="uniform", inplace=True):
         super(RandomDropout, self).__init__()
@@ -80,16 +81,16 @@ class RandomDropout(torch.nn.Module):
 
 class NoiseDropout(torch.nn.Module):
     """Implement noise dropout.
-    Reference: [1] Srivastava, N., Hinton, G., Krizhevsky, A., Sutskever, I., & Salakhutdinov, R. (2014). 
-               Dropout: a simple way to prevent neural networks from overfitting. The journal of machine 
-               learning research, 15(1), 1929-1958. 
+    Reference: [1] Srivastava, N., Hinton, G., Krizhevsky, A., Sutskever, I., & Salakhutdinov, R. (2014).
+               Dropout: a simple way to prevent neural networks from overfitting. The journal of machine
+               learning research, 15(1), 1929-1958.
 
-               [2] Li, X., Chen, S., Hu, X., & Yang, J. (2019). Understanding the disharmony between dropout 
-               and batch normalization by variance shift. Paper presented at the Proceedings of the IEEE 
+               [2] Li, X., Chen, S., Hu, X., & Yang, J. (2019). Understanding the disharmony between dropout
+               and batch normalization by variance shift. Paper presented at the Proceedings of the IEEE
                Conference on Computer Vision and Pattern Recognition.
 
-               [3] Shen, X., Tian, X., Liu, T., Xu, F., & Tao, D. (2017). Continuous dropout. IEEE transactions 
-               on neural networks and learning systems, 29(9), 3926-3937. 
+               [3] Shen, X., Tian, X., Liu, T., Xu, F., & Tao, D. (2017). Continuous dropout. IEEE transactions
+               on neural networks and learning systems, 29(9), 3926-3937.
 
     """
     def __init__(self, p=0.5, dim=2, method="uniform", continuous=False, inplace=True):
@@ -160,12 +161,12 @@ class SpecAugment(torch.nn.Module):
                Specaugment: A simple data augmentation method for automatic speech recognition. arXiv 
                preprint arXiv:1904.08779.
 
-    Likes in Compute Vision: 
+    Likes in Compute Vision:
            [1] DeVries, T., & Taylor, G. W. (2017). Improved regularization of convolutional neural networks 
                with cutout. arXiv preprint arXiv:1708.04552.
 
            [2] Zhong, Z., Zheng, L., Kang, G., Li, S., & Yang, Y. (2017). Random erasing data augmentation. 
-               arXiv preprint arXiv:1708.04896. 
+               arXiv preprint arXiv:1708.04896.
     """
     def __init__(self, frequency=0.2, frame=0.2, rows=1, cols=1, random_rows=False, random_cols=False):
         super(SpecAugment, self).__init__()

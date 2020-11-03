@@ -29,7 +29,7 @@ class SpecAugment():
                with cutout. arXiv preprint arXiv:1708.04552.
 
            [2] Zhong, Z., Zheng, L., Kang, G., Li, S., & Yang, Y. (2017). Random erasing data augmentation.
-               arXiv preprint arXiv:1708.04896. 
+               arXiv preprint arXiv:1708.04896.
     """
 
     def __init__(self, frequency=0.2, frame=0.2, rows=1, cols=1, random_rows=False, random_cols=False):
@@ -76,7 +76,7 @@ class SpecAugment():
 
             if self.p_f > 0.:
                 if self.random_rows:
-                    multi = np.random.randint(1, self.rows+1)
+                    multi = np.random.randint(1, self.rows + 1)
                 else:
                     multi = self.rows
 
@@ -86,16 +86,15 @@ class SpecAugment():
 
                     inverted_factor = self.num_f / (self.num_f - f)
                     if numpy_tensor:
-                        inputs[f_0:f_0+f, :].fill(0.)
-                        inputs = torch.from_numpy(inputs).mul_(
-                            inverted_factor).numpy()
+                        inputs[f_0:f_0 + f, :].fill(0.)
+                        inputs = torch.from_numpy(inputs).mul_(inverted_factor).numpy()
                     else:
-                        inputs[f_0:f_0+f, :].fill_(0.)
+                        inputs[f_0:f_0 + f, :].fill_(0.)
                         inputs.mul_(inverted_factor)
 
             if self.p_t > 0.:
                 if self.random_cols:
-                    multi = np.random.randint(1, self.cols+1)
+                    multi = np.random.randint(1, self.cols + 1)
                 else:
                     multi = self.cols
 
@@ -104,9 +103,9 @@ class SpecAugment():
                     t_0 = np.random.randint(0, self.num_t - t + 1)
 
                     if numpy_tensor:
-                        inputs[:, t_0:t_0+t].fill(0.)
+                        inputs[:, t_0:t_0 + t].fill(0.)
                     else:
-                        inputs[:, t_0:t_0+t].fill_(0.)
+                        inputs[:, t_0:t_0 + t].fill_(0.)
 
         return inputs
 

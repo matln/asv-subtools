@@ -33,6 +33,8 @@ valid_sample_type="every_utt" # With sampleSplit type [--total-spk] and sample t
 valid_chunk_num=2
 seed=1024
 
+expected_files="utt2spk,spk2utt,feats.scp,utt2num_frames"
+
 # . subtools/path.sh
 . "${SUBTOOLS}"/parse_options.sh
 
@@ -103,6 +105,7 @@ if [[ $stage -le 2 && 2 -le $endstage ]]; then
     --valid-chunk-num=$valid_chunk_num \
     --valid-sample-type=$valid_sample_type \
     --seed=$seed \
+    --expected-files=$expected_files \
     ${traindata}_nosil $egsdir || exit 1
 fi
 
