@@ -1,6 +1,7 @@
 #!/bin/bash
 #
 # Apache 2.0.
+# lijianchen 2020/11/16: only cmvn
 
 # This script applies sliding window cmvn and removes silence frames.  This
 # is performed on the raw features prior to generating examples for training
@@ -13,6 +14,7 @@ norm_vars=false
 center=true
 compress=true
 cmn=true
+nosil=true
 cmn_window=300
 
 echo "$0 $@"  # Print the command line for logging
@@ -65,18 +67,26 @@ sdata_in=$data_in/split${nj}utt;
 "${SUBTOOLS}"/kaldi/utils/split_data.sh --per-utt "${data_in}" $nj || exit 1;
 
 
-if [ "$cmn" == "true" ]; then
+if [ "$cmn" == "true" -a "$nosil" == "true" ]; then
   $cmd JOB=1:$nj $dir/log/create_xvector_feats_${name}.JOB.log \
     apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window \
       scp:${sdata_in}/JOB/feats.scp ark:- \| \
     select-voiced-frames ark:- scp,s,cs:${sdata_in}/JOB/vad.scp ark:- \| \
     copy-feats --compress=$compress $write_num_frames_opt ark:- \
       ark,scp:$featdir/xvector_feats_${name}.JOB.ark,$featdir/xvector_feats_${name}.JOB.scp || exit 1;
-else
+elif [ "$cmn" == "false" -a "$nosil" == "true" ]; then
   $cmd JOB=1:$nj $dir/log/create_xvector_feats_${name}.JOB.log \
     select-voiced-frames scp:${sdata_in}/JOB/feats.scp scp,s,cs:${sdata_in}/JOB/vad.scp ark:- \| \
     copy-feats --compress=$compress $write_num_frames_opt ark:- \
       ark,scp:$featdir/xvector_feats_${name}.JOB.ark,$featdir/xvector_feats_${name}.JOB.scp || exit 1;
+elif [ "$cmn" == "true" -a "$nosil" == "false" ]; then
+  $cmd JOB=1:$nj $dir/log/create_xvector_feats_${name}.JOB.log \
+    apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window \
+      scp:${sdata_in}/JOB/feats.scp ark:- \| \
+    copy-feats --compress=$compress $write_num_frames_opt ark:- \
+      ark,scp:$featdir/xvector_feats_${name}.JOB.ark,$featdir/xvector_feats_${name}.JOB.scp || exit 1;
+else
+  echo "cmn and nosil cannot be false at the same time" && exit 1
 fi
 
 

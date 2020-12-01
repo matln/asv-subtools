@@ -33,9 +33,9 @@ exclude_string=""
 
 if [ "$share" == "true" ];then
   run.pl $outdir/log/filter.log \
-    awk -v f=$f '{print $f}' $idlist \| subtools/kaldi/utils/filter_scp.pl $exclude_string - $indir/$scp_type \> $outdir/$scp_type
+    awk -v f=$f '{print $f}' $idlist \| "${SUBTOOLS}"/kaldi/utils/filter_scp.pl $exclude_string - $indir/$scp_type \> $outdir/$scp_type
 else
   run.pl $outdir/log/filter.log \
-    awk -v f=$f '{print $f}' $idlist \| subtools/kaldi/utils/filter_scp.pl $exclude_string - $indir/$scp_type \| copy-vector scp:- ark,scp:$outdir/$name.ark,$outdir/$scp_type
+    awk -v f=$f '{print $f}' $idlist \| "${SUBTOOLS}"/kaldi/utils/filter_scp.pl $exclude_string - $indir/$scp_type \| copy-vector scp:- ark,scp:$outdir/$name.ark,$outdir/$scp_type
 fi
 echo "Filter $outdir done."

@@ -289,9 +289,8 @@ class ResNet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, self.Conv):
-                torch.nn.init.normal_(m.weight, 0., 0.01)
-                nn.init.kaiming_normal_(
-                    m.weight, mode='fan_out', nonlinearity='relu')
+                # torch.nn.init.normal_(m.weight, 0., 0.01)
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
             elif isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d, nn.GroupNorm)) and norm_layer_affine:
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)

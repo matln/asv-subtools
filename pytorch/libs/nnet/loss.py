@@ -93,14 +93,17 @@ class SoftmaxLoss(TopVirtualLoss):
 
     def init(self, input_dim, num_targets, t=1, reduction='mean', special_init=False):
         self.affine = TdnnAffine(input_dim, num_targets)
+        # self.affine = torch.nn.Linear(input_dim, num_targets)
+        # torch.nn.init.normal_(self.affine.weight, 0., 0.01)  # It seems better.
+        # torch.nn.init.constant_(self.affine.bias, 0.)
         self.t = t  # temperature
         # CrossEntropyLoss() has included the LogSoftmax, so do not add this function extra.
         self.loss_function = torch.nn.CrossEntropyLoss(reduction=reduction)
 
         # The special_init is not recommended in this loss component
         if special_init:
-            torch.nn.init.xavier_uniform_(
-                self.affine.weight, gain=torch.nn.init.calculate_gain('sigmoid'))
+            torch.nn.init.xavier_normal_(self.weight, gain=1.0)
+            # torch.nn.init.xavier_uniform_(self.affine.weight, gain=1.0)
 
     def forward(self, inputs, targets):
         """Final outputs should be a (N, C) matrix and targets is a (1,N) matrix where there are

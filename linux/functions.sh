@@ -113,10 +113,10 @@ function force_for(){
   while [ $# -gt 1 ]; do
     target=$2
     if [ "$target" != "" ]; then
-      num=$(echo "$target" | sed 's/:/ /g' | awk '{print NF}')
+      num=$(echo "$target" | sed 's/:/ /' | awk '{print NF}')
       [ "$num" -ne 2 ] && echo "Expected a specifier for the target file/dir, but got $target." && exit 1
-      type=$(echo "$target" | sed 's/:/ /g' | awk '{print $1}')
-      target_path=$(echo "$target" | sed 's/:/ /g' | awk '{print $2}')
+      type=$(echo "$target" | sed 's/:/ /' | awk '{print $1}')
+      target_path=$(echo "$target" | sed 's/:/ /' | awk '{print $2}')
       [[ "$type" != "f" && "$type" != "d" ]] && echo "[Exit in force_for] the type of target file $target is not d/dir or f/file." && exit 1
       
       [ "$force" == "true" ] && rm -rf $target_path && break

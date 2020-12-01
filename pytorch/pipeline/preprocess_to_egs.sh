@@ -9,11 +9,13 @@ stage=0
 endstage=2
 
 force_clear=false
-features_exp=features/nosil
+features_exp=features/preprocess
 
 # Do vad and traditional cmn process
 nj=20
 cmn=true 
+nosil=true
+suffix=_nosil
 compress=false # Could be false to make use of kaldi_io I/O. If true, save space of disk but increase training time.
 
 # Remove utts
@@ -54,8 +56,8 @@ egsdir=$2
 if [[ $stage -le 0 && 0 -le $endstage ]]; then
   echo "$0: stage 0"
   if [ "${force_clear}" == "true" ]; then
-    rm -rf "${traindata}"_nosil
-    rm -rf ${features_exp}/"${name}"_nosil
+    rm -rf "${traindata}${suffix}"
+    rm -rf ${features_exp}/"${name}${suffix}"
   fi
 
   if [ ! -d "${features_exp}" ]; then
@@ -65,15 +67,16 @@ if [[ $stage -le 0 && 0 -le $endstage ]]; then
   # This script applies CMVN and removes nonspeech frames.  Note that this is somewhat
   # wasteful, as it roughly doubles the amount of training data on disk.  After
   # creating training examples, this can be removed.
-  if [ ! -d "${traindata}_nosil" ]; then
+  if [ ! -d "${traindata}${suffix}" ]; then
     "${SUBTOOLS}"/kaldi/sid/nnet3/xvector/prepare_feats_for_egs.sh \
       --nj $nj \
       --cmd "run.pl" \
       --compress $compress \
       --cmn $cmn \
-      "$traindata" "${traindata}"_nosil $features_exp/"${name}"_nosil || exit 1
+      --nosil $nosil \
+      "$traindata" "${traindata}${suffix}" $features_exp/"${name}${suffix}" || exit 1
   else
-    echo "Note, the ${traindata}_nosil is exist but force_clear is not true, so do not prepare feats again."
+    echo "Note, the ${traindata}${suffix} is exist but force_clear is not true, so do not prepare feats again."
   fi
 fi
 
@@ -84,7 +87,7 @@ if [[ $stage -le 1 && 1 -le $endstage ]]; then
   # frames.  We want atleast 2s (200 frames) per utterance.
   # AND we also want several utterances per speaker. we'll throw out speakers
   # with fewer than 8 utterances.
-  ${SUBTOOLS}/removeUtt.sh --limit-utts $limit_utts ${traindata}_nosil $min_chunk || exit 1
+  ${SUBTOOLS}/removeUtt.sh --limit-utts $limit_utts ${traindata}${suffix} $min_chunk || exit 1
 fi
 
 
@@ -106,7 +109,7 @@ if [[ $stage -le 2 && 2 -le $endstage ]]; then
     --valid-sample-type=$valid_sample_type \
     --seed=$seed \
     --expected-files=$expected_files \
-    ${traindata}_nosil $egsdir || exit 1
+    ${traindata}${suffix} $egsdir || exit 1
 fi
 
 exit 0

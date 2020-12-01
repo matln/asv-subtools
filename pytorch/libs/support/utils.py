@@ -217,25 +217,28 @@ def read_nnet_config(nnet_config: str):
     return model_blueprint, model_creation
 
 
-def create_model_dir(model_dir: str, model_blueprint: str, time_string: str, stage=-1):
+def create_model_dir(model_dir: str, model_blueprint: str, debug: bool, stage=-1):
     # Just change the path of blueprint so that use the copy of blueprint which is in the config directory and it could
     # avoid unkonw influence from the original blueprint which could be changed possibly before some processes needing
     # this blueprint, such as pipeline/onestep/extracting_embedings.py
-    config_model_blueprint = "{0}/config/{1}/{2}".format(model_dir, time_string, os.path.basename(model_blueprint))
+    config_model_blueprint = "{0}/config/{1}".format(model_dir, os.path.basename(model_blueprint))
 
-    if not os.path.exists("{0}/log".format(model_dir)):
-        os.makedirs("{0}/log".format(model_dir), exist_ok=True)
+    if debug is False:
+        if not os.path.exists("{0}/log".format(model_dir)):
+            os.makedirs("{0}/log".format(model_dir), exist_ok=True)
 
-    if not os.path.exists("{0}/config/{1}".format(model_dir, time_string)):
-        os.makedirs("{0}/config/{1}".format(model_dir, time_string), exist_ok=True)
+        if not os.path.exists("{0}/config".format(model_dir)):
+            os.makedirs("{0}/config".format(model_dir), exist_ok=True)
 
-    if is_main_training():
-        if stage < 0 and model_blueprint != config_model_blueprint:
-            shutil.copy(model_blueprint, config_model_blueprint)
+        if is_main_training():
+            if stage < 0 and model_blueprint != config_model_blueprint:
+                shutil.copy(model_blueprint, config_model_blueprint)
+        else:
+            while(True):
+                if os.path.exists(config_model_blueprint):
+                    break
     else:
-        while(True):
-            if os.path.exists(config_model_blueprint):
-                break
+        config_model_blueprint = model_blueprint
 
     return config_model_blueprint
 

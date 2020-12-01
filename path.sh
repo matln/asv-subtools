@@ -12,10 +12,10 @@
 # [ ! -d $kaldi_root_dir/tools ] && echo >&2 "[KALDI_ROOT ERROR] Got an invalid path $kaldi_root_dir when source environment (See the 'Note' in subtools/path.sh to correct it by yourself)." && exit 1
 
 # export KALDI_ROOT=$kaldi_root_dir
-export KALDI_ROOT=/home/lijianchen/kaldi
+export KALDI_ROOT=/data/lijianchen/kaldi
 [ -f $KALDI_ROOT/tools/env.sh ] && . $KALDI_ROOT/tools/env.sh
 
-export SUBTOOLS=/home/lijianchen/workspace/sre/subtools
+export SUBTOOLS=/data/lijianchen/workspace/sre/subtools
 export PATH=${SUBTOOLS}/kaldi/utils:$KALDI_ROOT/tools/openfst/bin:$PWD:$PATH
 [ ! -f $KALDI_ROOT/tools/config/common_path.sh ] && echo >&2 "The standard file $KALDI_ROOT/tools/config/common_path.sh is not present -> Exit!" && exit 1
 . $KALDI_ROOT/tools/config/common_path.sh

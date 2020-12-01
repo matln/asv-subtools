@@ -8,9 +8,9 @@ force=false
 clear=false
 scp_type=xvector.scp
 
-. subtools/parse_options.sh
-. subtools/linux/functions.sh
-. subtools/path.sh
+. "${SUBTOOLS}"/parse_options.sh
+. "${SUBTOOLS}"/linux/functions.sh
+# . subtools/path.sh
 
 #   #
   # 
@@ -27,10 +27,10 @@ trials=$2
 datadir=$(dirname $datadir)/$(basename $datadir)
 
 
-if [ "$outname" == "" ];then
-    outname=$datadir
+if [ "$outname" == "" ]; then
+  outname=$datadir
 else
-    outname=$(dirname $datadir)/$outname
+  outname=$(dirname $datadir)/$outname
 fi
 
 this_name=$(basename $outname)
@@ -47,28 +47,28 @@ force_for "awk '{print \$2}' $trials | sort -u > $datadir/$test_list" f:$datadir
 
 # Subset
 echo "[3] Generate ${outname}_enroll..."
-force_for "subtools/filterDataDir.sh $datadir $datadir/$enroll_list ${outname}_enroll" d:${outname}_enroll
+force_for "${SUBTOOLS}/filterDataDir.sh $datadir $datadir/$enroll_list ${outname}_enroll" d:${outname}_enroll
 
 echo "[4] Generate ${outname}_test..."
-force_for "subtools/filterDataDir.sh $datadir $datadir/$test_list ${outname}_test" d:${outname}_test
+force_for "${SUBTOOLS}/filterDataDir.sh $datadir $datadir/$test_list ${outname}_test" d:${outname}_test
 echo "[5] Copy $trials to ${outname}_test/trials..."
 force_for "cp -f $trials ${outname}_test/trials" f:${outname}_test/trials
 
-if [ "$vectordir" != "" ];then
-    vectordir_dir=$(dirname $vectordir)
-    dataset_name=$(basename $outname)
+if [ "$vectordir" != "" ]; then
+  vectordir_dir=$(dirname $vectordir)
+  dataset_name=$(basename $outname)
 
-    echo "[6] Generate $vectordir_dir/${dataset_name}_enroll ..."
-    force_for "subtools/filterVectorDir.sh --scp-type $scp_type $vectordir $datadir/enroll.list $vectordir_dir/${dataset_name}_enroll" \
-              d:$vectordir_dir/${dataset_name}_enroll
+  echo "[6] Generate $vectordir_dir/${dataset_name}_enroll ..."
+  force_for "${SUBTOOLS}/filterVectorDir.sh --scp-type $scp_type $vectordir $datadir/$enroll_list $vectordir_dir/${dataset_name}_enroll" \
+            d:$vectordir_dir/${dataset_name}_enroll
 
-    echo "[7] Generate $vectordir_dir/${dataset_name}_test ..."
-    force_for "subtools/filterVectorDir.sh --scp-type $scp_type $vectordir $datadir/test.list $vectordir_dir/${dataset_name}_test" \
-              d:$vectordir_dir/${dataset_name}_test
+  echo "[7] Generate $vectordir_dir/${dataset_name}_test ..."
+  force_for "${SUBTOOLS}/filterVectorDir.sh --scp-type $scp_type $vectordir $datadir/$test_list $vectordir_dir/${dataset_name}_test" \
+            d:$vectordir_dir/${dataset_name}_test
 fi
 
-if [ "$clear" == "true" ];then
-    rm -f $datadir/enroll.list $datadir/test.list
+if [ "$clear" == "true" ]; then
+  rm -f $datadir/enroll.list $datadir/test.list
 fi
 
 echo "## Split done ##"

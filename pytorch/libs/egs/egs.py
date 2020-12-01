@@ -48,14 +48,14 @@ class ChunkEgs(Dataset):
         @io_status: if false, do not read data from disk and return zero, which is useful for saving i/o resource
         when kipping seed index.
         """
-        assert egs_type is "chunk" or egs_type is "vector"
+        assert egs_type == "chunk" or egs_type == "vector"
         assert egs_csv != "" and egs_csv is not None
         head = pd.read_csv(egs_csv, sep=" ", nrows=0).columns
 
         assert "ark-path" in head
         assert "class-label" in head
 
-        if egs_type is "chunk":
+        if egs_type == "chunk":
             if "start-position" in head and "end-position" in head:
                 self.chunk_position = pd.read_csv(egs_csv, sep=" ", usecols=["start-position", "end-position"]).values
             elif "start-position" not in head and "end-position" not in head:
@@ -91,7 +91,7 @@ class ChunkEgs(Dataset):
         else:
             chunk = None
 
-        if self.egs_type is "chunk":
+        if self.egs_type == "chunk":
             egs = kaldi_io.read_mat(egs_path, chunk=chunk)
         else:
             egs = kaldi_io.read_vec_flt(egs_path)
@@ -182,7 +182,7 @@ class BaseBunch():
             self.num_batch_valid = 0
 
     @classmethod
-    def get_bunch_from_csv(self, trainset_csv:str, valid_csv:str=None, egs_params:dict={}, data_loader_params_dict:dict={}):
+    def get_bunch_from_csv(cls, trainset_csv:str, valid_csv:str=None, egs_params:dict={}, data_loader_params_dict:dict={}):
         egs_type = "chunk"
         if "egs_type" in egs_params.keys():
             egs_type = egs_params.pop("egs_type")
@@ -247,7 +247,7 @@ def get_info_from_egsdir(egsdir, train_csv_name=None, valid_csv_name=None):
         num_targets = int(utils.read_file_to_list(egsdir + "/info/num_targets")[0])
 
         train_csv_name = train_csv_name if train_csv_name is not None else "train.egs.csv"
-        valid_csv_name = valid_csv_name if valid_csv_name is not None else "valid.egs.csv"
+        valid_csv_name = valid_csv_name if valid_csv_name is not None else "validation.egs.csv"
 
         train_csv = egsdir + "/" + train_csv_name
         valid_csv = egsdir + "/" + valid_csv_name

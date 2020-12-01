@@ -2,17 +2,18 @@
 
 # Copyright xmuspeech (Author: Snowdar 2020-02-05)
 
-import os, sys
+import os
+import sys
 import math
 import torch
 import torch.nn.functional as F
 
-# subtools = '/data/lijianchen/workspace/sre/subtools'
-subtools = os.getenv('SUBTOOLS')
+subtools = '/data/lijianchen/workspace/sre/subtools'
+# subtools = os.getenv('SUBTOOLS')
 sys.path.insert(0, '{}/pytorch'.format(subtools))
 
-from libs.nnet import *
 import libs.support.utils as utils
+from libs.nnet import *
 
 
 class Xvector(TopVirtualNnet):
@@ -170,7 +171,8 @@ class Xvector(TopVirtualNnet):
 
             if margin_loss and transfer_from == "softmax_loss":
                 # For softmax_loss to am_softmax_loss
-                self.rename_transform_keys = {"loss.affine.weight": "loss.weight"}
+                self.rename_transform_keys = {
+                    "loss.affine.weight": "loss.weight"}
 
     @utils.for_device_free
     def forward(self, inputs):
@@ -310,3 +312,52 @@ class Xvector(TopVirtualNnet):
 
             if self.step_params["s"]:
                 self.loss.s = self.step_params["s_tuple"][self.step_params["s_list"][epoch]]
+
+
+if __name__ == "__main__":
+
+    model_params = {
+        "extend": True,
+        "SE": False,
+        "se_ratio": 4,
+        "training": True, "extracted_embedding": "far",
+
+        "tdnn_layer_params": {"nonlinearity": 'relu', "nonlinearity_params": {"inplace": True},
+                              "bn-relu": False,
+                              "bn": True,
+                              "bn_params": {"momentum": 0.5, "affine": False, "track_running_stats": True}},
+
+        "pooling": "statistics",  # statistics, lde, attentive, multi-head, multi-resolution
+        "pooling_params": {"num_nodes": 1500,
+                           "num_head": 1,
+                           "share": True,
+                           "affine_layers": 1,
+                           "hidden_size": 64,
+                           "context": [0],
+                           "temperature": False,
+                           "fixed": True},
+        "tdnn6": True,
+        "tdnn7_params": {"nonlinearity": "", "bn": True},
+
+        "margin_loss": True,
+        "margin_loss_params": {"method": "am", "m": 0.2, "feature_normalize": True,
+                               "s": 30, "mhe_loss": False, "mhe_w": 0.01},
+        "use_step": True,
+        "step_params": {"T": None,
+                        "m": True, "lambda_0": 0, "lambda_b": 1000, "alpha": 5, "gamma": 1e-4,
+                        "s": False, "s_tuple": (30, 12), "s_list": None,
+                        "t": False, "t_tuple": (0.5, 1.2),
+                        "p": False, "p_tuple": (0.5, 0.1)}
+    }
+
+    x = torch.zeros(2, 26, 200)
+    model = Xvector(inputs_dim=26, num_targets=1211, **model_params)
+    out = model(x)
+    print(model)
+    # # print(out.shape)    # should be [2, 192]
+
+    import numpy as np
+    print(np.sum([p.numel() for p in model.tdnn3.affine.parameters()]).item())
+    print(np.sum([p.numel() for p in model.parameters()]).item())
+
+

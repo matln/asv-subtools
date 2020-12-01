@@ -21,8 +21,8 @@ write_utt2dur=true
 
 echo "$0 $@"  # Print the command line for logging.
 
-if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
-. parse_options.sh || exit 1;
+# if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
+. "${SUBTOOLS}"/parse_options.sh || exit 1;
 
 if [ $# -lt 1 ] || [ $# -gt 3 ]; then
   cat >&2 <<EOF
@@ -82,7 +82,7 @@ for f in $required; do
   fi
 done
 
-subtools/kaldi/utils/validate_data_dir.sh --no-text --no-feats $data || exit 1;
+"${SUBTOOLS}"/kaldi/utils/validate_data_dir.sh --no-text --no-feats $data || exit 1;
 
 if [ ! -z "$pitch_postprocess_config" ]; then
   postprocess_config_opt="--config=$pitch_postprocess_config";
@@ -101,7 +101,7 @@ fi
 for n in $(seq $nj); do
   # the next command does nothing unless $fbank_pitch_dir/storage/ exists, see
   # subtools/kaldi/utils/create_data_link.pl for more info.
-  subtools/kaldi/utils/create_data_link.pl $fbank_pitch_dir/raw_fbank_pitch_$name.$n.ark
+  "${SUBTOOLS}"/kaldi/utils/create_data_link.pl $fbank_pitch_dir/raw_fbank_pitch_$name.$n.ark
 done
 
 if $write_utt2num_frames; then
@@ -123,7 +123,7 @@ if [ -f $data/segments ]; then
     split_segments="$split_segments $logdir/segments.$n"
   done
 
-  subtools/kaldi/utils/split_scp.pl $data/segments $split_segments || exit 1;
+  "${SUBTOOLS}"/kaldi/utils/split_scp.pl $data/segments $split_segments || exit 1;
   rm $logdir/.error 2>/dev/null
 
   fbank_feats="ark:extract-segments scp,p:$scp $logdir/segments.JOB ark:- |\
@@ -147,7 +147,7 @@ else
     split_scps="$split_scps $logdir/wav_${name}.$n.scp"
   done
 
-  subtools/kaldi/utils/split_scp.pl $scp $split_scps || exit 1;
+  "${SUBTOOLS}"/kaldi/utils/split_scp.pl $scp $split_scps || exit 1;
 
   fbank_feats="ark:compute-fbank-feats $vtln_opts $write_utt2dur_opt \
    --verbose=2 --config=$fbank_config scp,p:$logdir/wav_${name}.JOB.scp ark:- |"

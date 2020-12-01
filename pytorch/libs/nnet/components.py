@@ -411,7 +411,7 @@ class ReluBatchNormTdnnLayer(_BaseActivationBatchNorm):
     An usual 3-fold layer with TdnnAffine affine.
     """
 
-    def __init__(self, input_dim, output_dim, context=[0], affine_type="tdnn", **options):
+    def __init__(self, input_dim, output_dim, context=[0], affine_type="tdnn-affine", **options):
         super(ReluBatchNormTdnnLayer, self).__init__()
 
         affine_options = {
@@ -429,11 +429,26 @@ class ReluBatchNormTdnnLayer(_BaseActivationBatchNorm):
         #          (affine): TdnnAffine()
         #          (activation): ReLU()
         #          (batchnorm): BatchNorm1d(512, eps=1e-05, momentum=0.5, affine=False, track_running_stats=True)
-        if affine_type == "tdnn":
+        if affine_type == "tdnn-affine":
             self.affine = TdnnAffine(input_dim, output_dim, context=context, **affine_options)
-        else:
+        elif affine_type == "conv1d-dilation":
+            dilation = context[1] - context[0] if len(context) > 1 else 1
+            for i in range(1, len(context) - 1):
+                assert dilation == context[i + 1] - context[i]
+
+            left_context = context[0] if context[0] < 0 else 0
+            right_context = context[-1] if context[-1] > 0 else 0
+            receptive_field_size = right_context - left_context + 1
+            padding = receptive_field_size // 2
+
+            self.affine = torch.nn.Conv1d(input_dim, output_dim, kernel_size=len(context),
+                                          stride=1, padding=padding, dilation=dilation,
+                                          bias=affine_options["bias"])
+        elif affine_type == "chunk-separation-affine":
             self.affine = ChunkSeparationAffine(
                 input_dim, output_dim, context=context, **affine_options)
+        else:
+            raise ValueError("parameter error!")
 
         self.add_relu_bn(output_dim, options=options)
 
@@ -557,6 +572,7 @@ class SEBlock(torch.nn.Module):
     Squeeze-and-Excitation Networks
     by JFChou xmuspeech 2019-07-13
        Snowdar xmuspeech 2020-04-28 [Check and update]
+       lijianchen 2020-11-18
     """
 
     def __init__(self, input_dim, ratio=16, inplace=True):
@@ -568,9 +584,13 @@ class SEBlock(torch.nn.Module):
 
         self.input_dim = input_dim
 
-        self.fc_1 = TdnnAffine(input_dim, input_dim//ratio)
+        self.fc_1 = TdnnAffine(input_dim, input_dim//ratio, bias=False)
+        # self.fc_1 = torch.nn.Linear(input_dim, input_dim // ratio, bias=False)
+        torch.nn.init.kaiming_uniform_(self.fc_1.weight, mode='fan_out', nonlinearity='relu')
         self.relu = torch.nn.ReLU(inplace=inplace)
-        self.fc_2 = TdnnAffine(input_dim//ratio, input_dim)
+        self.fc_2 = TdnnAffine(input_dim//ratio, input_dim, bias=False)
+        # self.fc_2 = torch.nn.Linear(input_dim // ratio, input_dim, bias=False)
+        torch.nn.init.xavier_normal_(self.fc_2.weight, gain=1.0)
         self.sigmoid = torch.nn.Sigmoid()
 
     def forward(self, inputs):

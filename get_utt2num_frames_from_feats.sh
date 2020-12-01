@@ -4,9 +4,8 @@
 
 nj=10
 
-. subtools/parse_options.sh
-. subtools/linux/functions.sh
-. subtools/path.sh
+. "${SUBTOOLS}"/parse_options.sh
+. "${SUBTOOLS}"/linux/functions.sh
 
 set -e
 

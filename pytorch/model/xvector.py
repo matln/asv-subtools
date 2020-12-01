@@ -111,38 +111,45 @@ class Xvector(TopVirtualNnet):
 
 # Test.
 if __name__ == "__main__":
-    from collections import OrderedDict
+    model = Xvector(inputs_dim=26, num_targets=1211, training=False)
+    print(model)
+    # print(out.shape)    # should be [2, 192]
+
     import numpy as np
+    print(np.sum([p.numel() for p in model.parameters()]).item())
 
-    model = Xvector(26, 1211)
-    fast_weights = OrderedDict(model.named_parameters())
-    inputs = torch.Tensor(2, 26, 200)
-    inputs2 = torch.Tensor(2, 26, 200)
-    targets = np.array([0, 1])
-    targets2 = np.array([0, 1])
+    # from collections import OrderedDict
+    # import numpy as np
 
-    weights = OrderedDict(model.named_parameters())
-    out = model.forward(inputs)
-    loss = model.get_loss(out, targets)
-    gradients = torch.autograd.grad(loss, weights.values(), create_graph=False)
+    # model = Xvector(26, 1211)
+    # fast_weights = OrderedDict(model.named_parameters())
+    # inputs = torch.Tensor(2, 26, 200)
+    # inputs2 = torch.Tensor(2, 26, 200)
+    # targets = np.array([0, 1])
+    # targets2 = np.array([0, 1])
 
-    out2 = model.forward(inputs2)
-    loss2 = model.get_loss(out2, targets2)
-    loss2.backward()
+    # weights = OrderedDict(model.named_parameters())
+    # out = model.forward(inputs)
+    # loss = model.get_loss(out, targets)
+    # gradients = torch.autograd.grad(loss, weights.values(), create_graph=False)
 
-    # weights = OrderedDict(
-    #     (name, param - grad)
-    #     for ((name, param), grad) in zip(weights.items(), gradients))
+    # out2 = model.forward(inputs2)
+    # loss2 = model.get_loss(out2, targets2)
+    # loss2.backward()
 
-    #         p.grad.detach().mul_(clip_coef.to(p.grad.device))
-    weights = OrderedDict(model.named_parameters())
-    grad = torch.ones((512, 26, 5))
-    # for ((name, param), grad) in zip(weights.items(), gradients):
-    for (name, param) in weights.items():
-        print(name)
-        # print(param.grad)
-        # print(param.grad.detach().add_(3 / 4 * grad.to(param.grad.device)))
-    # # One step update
-    # weights = OrderedDict(
-    #     (name, param - 4 * alpha * grad)
-    #     for ((name, param), grad) in zip(weights.items(), gradients))
+    # # weights = OrderedDict(
+    # #     (name, param - grad)
+    # #     for ((name, param), grad) in zip(weights.items(), gradients))
+
+    # #         p.grad.detach().mul_(clip_coef.to(p.grad.device))
+    # weights = OrderedDict(model.named_parameters())
+    # grad = torch.ones((512, 26, 5))
+    # # for ((name, param), grad) in zip(weights.items(), gradients):
+    # for (name, param) in weights.items():
+    #     print(name)
+    #     # print(param.grad)
+    #     # print(param.grad.detach().add_(3 / 4 * grad.to(param.grad.device)))
+    # # # One step update
+    # # weights = OrderedDict(
+    # #     (name, param - 4 * alpha * grad)
+    # #     for ((name, param), grad) in zip(weights.items(), gradients))

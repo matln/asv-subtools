@@ -35,15 +35,16 @@ class Reporter():
         else:
             self.report_interval_iters = default_params["report_interval_iters"]
 
-        if default_params["use_tensorboard"]:
+        if not self.trainer.params["debug"] and default_params["use_tensorboard"]:
             # from tensorboardX import SummaryWriter
             from torch.utils.tensorboard import SummaryWriter
             model_name = os.path.basename(self.trainer.params["model_dir"])
             # time_string = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
-            time_string = self.trainer.params["time_string"]
+            # time_string = self.trainer.params["time_string"]
             # self.board_writer = SummaryWriter("{}/log/{}-{}-tensorboard".format(self.trainer.params["model_dir"], model_name, time_string))
-            self.board_writer = SummaryWriter("{}/log/{}-{}-tensorboard".format(
-                self.trainer.params["model_dir"], time_string, model_name))
+            # self.board_writer = SummaryWriter("{}/log/{}-{}-tensorboard".format(
+            #     self.trainer.params["model_dir"], time_string, model_name))
+            self.board_writer = SummaryWriter("{}/log/tensorboard".format(self.trainer.params["model_dir"]))
         else:
             self.board_writer = None
 
@@ -61,7 +62,7 @@ class Reporter():
         self.record_value = []
 
         self.start_write_log = False
-        if default_params["record_file"] != "" and default_params["record_file"] is not None:
+        if not self.trainer.params["debug"] and default_params["record_file"] != "" and default_params["record_file"] is not None:
             self.record_file = "{0}/log/{1}".format(self.trainer.params["model_dir"], default_params["record_file"])
 
             # The case to recover training
@@ -129,8 +130,8 @@ class Reporter():
 
                 real_snapshot = snapshot.pop("real")
                 if self.board_writer is not None:
-                    self.board_writer.add_scalar("epoch", float(current_epoch + 1), updated_iters)
-                    self.board_writer.add_scalar("lr", current_lr, updated_iters)
+                    self.board_writer.add_scalars("scalar_base", {"epoch": float(current_epoch + 1),
+                                                                  "lr": current_lr}, updated_iters)
 
                     loss_dict = {}
                     acc_dict = {}

@@ -17,8 +17,8 @@ write_utt2dur=true
 
 echo "$0 $@"  # Print the command line for logging.
 
-if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
-. parse_options.sh || exit 1;
+# if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
+. "${SUBTOOLS}"/parse_options.sh || exit 1;
 
 if [ $# -lt 1 ] || [ $# -gt 3 ]; then
   cat >&2 <<EOF
@@ -75,7 +75,7 @@ for f in $required; do
   fi
 done
 
-subtools/kaldi/utils/validate_data_dir.sh --no-text --no-feats $data || exit 1;
+"${SUBTOOLS}"/kaldi/utils/validate_data_dir.sh --no-text --no-feats $data || exit 1;
 
 if [ -f $data/spk2warp ]; then
   echo "$0 [info]: using VTLN warp factors from $data/spk2warp"
@@ -88,7 +88,7 @@ fi
 for n in $(seq $nj); do
   # the next command does nothing unless $fbankdir/storage/ exists, see
   # subtools/kaldi/utils/create_data_link.pl for more info.
-  subtools/kaldi/utils/create_data_link.pl $fbankdir/raw_fbank_$name.$n.ark
+  "${SUBTOOLS}"/kaldi/utils/create_data_link.pl $fbankdir/raw_fbank_$name.$n.ark
 done
 
 if $write_utt2num_frames; then
@@ -110,7 +110,7 @@ if [ -f $data/segments ]; then
     split_segments="$split_segments $logdir/segments.$n"
   done
 
-  subtools/kaldi/utils/split_scp.pl $data/segments $split_segments || exit 1;
+  "${SUBTOOLS}"/kaldi/utils/split_scp.pl $data/segments $split_segments || exit 1;
   rm $logdir/.error 2>/dev/null
 
   $cmd JOB=1:$nj $logdir/make_fbank_${name}.JOB.log \
@@ -127,7 +127,7 @@ else
     split_scps="$split_scps $logdir/wav.$n.scp"
   done
 
-  subtools/kaldi/utils/split_scp.pl $scp $split_scps || exit 1;
+  "${SUBTOOLS}"/kaldi/utils/split_scp.pl $scp $split_scps || exit 1;
 
   $cmd JOB=1:$nj $logdir/make_fbank_${name}.JOB.log \
     compute-fbank-feats $vtln_opts $write_utt2dur_opt --verbose=2 \

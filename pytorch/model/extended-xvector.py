@@ -7,8 +7,8 @@ import sys
 import torch
 import torch.nn.functional as F
 
-# subtools = '/data/lijianchen/workspace/sre/subtools'
-subtools = os.getenv('SUBTOOLS')
+subtools = '/data/lijianchen/workspace/sre/subtools'
+# subtools = os.getenv('SUBTOOLS')
 sys.path.insert(0, '{}/pytorch'.format(subtools))
 
 from libs.nnet import *
@@ -126,3 +126,15 @@ class ExtendedXvector(TopVirtualNnet):
             xvector = self.tdnn7.affine(x)
 
         return xvector
+
+
+if __name__ == '__main__':
+    # Input size: batch_size * seq_len * feat_dim
+    x = torch.zeros(2, 26, 200)
+    model = ExtendedXvector(inputs_dim=26, num_targets=1211, aug_dropout=0)
+    # out = model(x)
+    # print(model)
+    # print(out.shape)    # should be [2, 192]
+
+    import numpy as np
+    print(np.sum([p.numel() for p in model.parameters()]).item())

@@ -60,7 +60,7 @@ class _BaseTrainer():
                           "start_epoch": 0, "epochs": 10, "use_gpu": True, "gpu_id": "",
                           "benchmark": True, "max_change": 10.0, "compute_accuracy": True,
                           "compute_valid_accuracy": True, "compute_one_batch_valid": True,
-                          "suffix": "params", "nan_debug": False, "use_tensorboard": False}
+                          "suffix": "params", "nan_debug": False, "use_tensorboard": True}
 
         elements, params = package
         self.elements = utils.assign_params_dict(default_elements, elements)
@@ -90,10 +90,12 @@ class _BaseTrainer():
         model_dir = self.params["model_dir"]
         model_blueprint = self.params["model_blueprint"]
         suffix = self.params["suffix"]
+        debug = self.params["debug"]
 
-        if start_epoch <= 0 and utils.is_main_training():
+        if start_epoch <= 0 and utils.is_main_training() and debug is False:
             model_creation = model.get_model_creation()
-            utils.write_nnet_config(model_blueprint, model_creation, "{0}/config/nnet.config".format(model_dir))
+            utils.write_nnet_config(model_blueprint, model_creation,
+                                    "{0}/config/nnet.config".format(model_dir))
 
         # Recover checkpoint | Tansform learning | Initialize parametes
         if start_epoch > 0:
@@ -142,7 +144,10 @@ class _BaseTrainer():
         else:
             model_name = "{}.{}".format(self.training_point[0] + 1, self.training_point[1] + 1)
 
-        model_path = '{0}/{1}.{2}'.format(self.params["model_dir"], model_name, self.params["suffix"])
+        model_dir = '{0}/{1}'.format(self.params["model_dir"], self.params["suffix"])
+        if not os.path.exists(model_dir):
+            os.makedirs(model_dir)
+        model_path = model_dir + '/{0}.{1}'.format(model_name, self.params["suffix"])
         logger.info("Save model from {0}/{1} of {2} epoch to {3}.".format(
             self.training_point[1] + 1, self.training_point[2], self.training_point[0] + 1, model_path))
         torch.save(self.elements["model"].state_dict(), model_path)
@@ -274,6 +279,7 @@ class SimpleTrainer(_BaseTrainer):
             model_forward = self.elements["model_forward"]  # See init_training.
             lr_scheduler = self.elements["lr_scheduler"]
             base_optimizer = self.elements["optimizer"]
+            best_valid_acc = 0.0
 
             # For lookahead.
             if getattr(base_optimizer, "optimizer", None) is not None:
@@ -315,6 +321,11 @@ class SimpleTrainer(_BaseTrainer):
                                         "real": real_snapshot}
                             # For ReduceLROnPlateau.
                             lr_scheduler_params["valid_metric"] = (valid_loss, valid_acc)
+
+                            if lr_scheduler.name == "warmR" and utils.is_main_training():
+                                if this_epoch >= epochs - 1 and valid_acc > best_valid_acc:
+                                    best_valid_acc = valid_acc
+                                    self.save_model(from_epoch=False)
                         else:
                             real_snapshot = {"train_loss": loss, "train_acc": acc * 100}
                             snapshot = {"train_loss": "{0:.6f}".format(loss), "valid_loss": "",
@@ -336,7 +347,8 @@ class SimpleTrainer(_BaseTrainer):
                     if utils.is_main_training():
                         self.reporter.update(snapshot)
                 if utils.is_main_training():
-                    self.save_model()
+                    if this_epoch >= epochs - 3:
+                        self.save_model()
             if utils.is_main_training():
                 self.reporter.finish()
         except BaseException as e:
