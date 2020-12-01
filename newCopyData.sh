@@ -3,6 +3,7 @@
 # Copyright xmuspeech (Author:Snowdar 2018-7-25)
 
 topdir=data
+clean=true
 force=false # for overwrite
 
 . "${SUBTOOLS}"/parse_options.sh
@@ -38,9 +39,10 @@ for src in $srcs; do
     trials="$trials $(basename "$path")"
   done
 
-  for x in wav.scp utt2spk spk2utt feats.scp vad.scp utt2num_frames utt2dur reco2dur text utt2gender spk2gender $trials; do
-    [ -f "$src"/"$x" ] && cp "$src"/"$x" "$target"/ && echo "[ $x ] copy done"
+  extra=
+  [ "$clean" == "false" ] && extra="feats.scp vad.scp"
+  for x in wav.scp utt2spk spk2utt utt2num_frames utt2dur reco2dur text utt2gender spk2gender $extra $trials; do
+    [ -f "$src/$x" ] && cp "$src/$x" "$target"/ && echo "[ $x ] copy done"
   done
-  echo -e "Note, your new datadir is $target\n"
+  echo "Copy done. Your new datadir is $target."
 done
-echo "Copy done."
