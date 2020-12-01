@@ -91,21 +91,24 @@ subtools/computeVad.sh data/$prefix/voxceleb1/ $vad_conf
 
 # [11] Sample egs. It will do cmn and vad firstly and then remove invalid utts. Finally, 
 #                  it samples egs to fixed chunk-size with instance sampling.
-subtools/runPytorchLauncher.sh run-resnet34-fbank-81-benchmark.py --stage=0 --endstage=2
+subtools/runPytorchLauncher.sh subtools/recipe/voxcelebSRC/run-resnet34-fbank-81-benchmark.py --stage=0 --endstage=2
 
-# [12] Train a Resnet34 + multi-head-attention model with AM-Softmax loss and 4 GPUs will be used to accelerate training
-subtools/runPytorchLauncher.sh run-resnet34-fbank-81-benchmark.py --stage=3 --endstage=3 --gpu-id=0,1,2,3
+# [12] Train a thin Resnet34 model with AM-Softmax loss and 4 GPUs will be used to accelerate training
+subtools/runPytorchLauncher.sh subtools/recipe/voxcelebSRC/run-resnet34-fbank-81-benchmark.py --stage=3 --endstage=3 --gpu-id=0,1,2,3
 
 # [13] Extract near xvectors in epoch 6 for voxceleb1 and voxceleb2_dev
-subtools/runPytorchLauncher.sh run-resnet34-fbank-81-benchmark.py --stage=4
+subtools/runPytorchLauncher.sh subtools/recipe/voxcelebSRC/run-resnet34-fbank-81-benchmark.py --stage=4
 
 ### Back-end scoring
 # [14] Score with submean + Cosine + AS-Norm processes
 tasks="vox1-O vox1-O-clean vox1-E vox1-E-clean vox1-H vox1-H-clean"
+score_norm=false
 for task in $tasks;do
+    [ "$task" == "vox1-O" ] && score_norm=true
+    [ "$task" == "vox1-O-clean" ] && score_norm=true
     subtools/recipe/voxcelebSRC/gather_results_from_epochs.sh --prefix $prefix --score cosine  --submean true \
-         --task $task --epochs "6" --postions "near" --score-norm true --score-norm-method true --top-n 100 \
-         --cohort-set voxceleb2_dev
+         --vectordir "exp/resnet34_fbank_81_benchmark" --task $task --epochs "6" --postions "near" \
+         --score-norm $score_norm --score-norm-method "asnorm" --top-n 100 --cohort-set voxceleb2_dev
 done
 
 #### Report ####

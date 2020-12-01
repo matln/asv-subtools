@@ -90,7 +90,7 @@ for position in $positions;do
         # voxceleb -> voxceleb1-O/E/H[-clean]_enroll/test
         if [ "$split" == "true" ];then
             subtools/split_enroll_test_by_trials.sh --force $force --outname $task_name --vectordir $obj_dir/$srcdata \
-                                      data/$prefix/$srcdata $prepare_trials
+                                      data/$prefix/$srcdata $prepare_trials || exit 1
         fi
 
         [[ "$force" == "true" || ! -f $obj_dir/$name.eer ]] && \
@@ -128,7 +128,7 @@ for position in $positions;do
             [ $num1 -gt $num2 ] && enroll_key=spk2utt
 
             if [ "$score_norm_spk_mean" == "true" ];then
-                cohort_process="mean-$test_process"
+                cohort_process="$test_process-mean"
                 subtools/getTrials.sh 3 data/$prefix/$enrollset/$enroll_key data/$prefix/$cohort_set/spk2utt \
                                                            data/$prefix/$cohort_set/$enrollset.cohort.trials || exit 1
                 subtools/getTrials.sh 3 data/$prefix/$testset/utt2spk data/$prefix/$cohort_set/spk2utt \
@@ -181,6 +181,6 @@ for position in $positions;do
     done
 done
 
-echo -e "$results-----------------------\n" >> $vectordir/${score}_${testset}${lda_string}${submean_string}.results
+echo -e "$results\n-----------------------\n" >> $vectordir/${score}_${testset}${lda_string}${submean_string}.results
 
 echo -e $results
