@@ -46,6 +46,7 @@ class Xvector(TopVirtualNnet):
         }
 
         default_tdnn_layer_params = {
+            "affine_type": 'tdnn-affine',
             "nonlinearity": 'relu', "nonlinearity_params": {"inplace": True},
             "bn-relu": False, "bn": True, "bn_params": {"momentum": 0.5, "affine": False, "track_running_stats": True}
         }
@@ -322,7 +323,8 @@ if __name__ == "__main__":
         "se_ratio": 4,
         "training": True, "extracted_embedding": "far",
 
-        "tdnn_layer_params": {"nonlinearity": 'relu', "nonlinearity_params": {"inplace": True},
+        "tdnn_layer_params": {"affine_type": 'conv1d-dilation',
+                              "nonlinearity": 'relu', "nonlinearity_params": {"inplace": True},
                               "bn-relu": False,
                               "bn": True,
                               "bn_params": {"momentum": 0.5, "affine": False, "track_running_stats": True}},

@@ -27,12 +27,10 @@ class Res2Conv1dReluBn(nn.Module):
 
     in_channels == out_channels == channels
     '''
-    def __init__(self, channels, kernel_size=1, stride=1, padding=0, dilation=1, bias=False,
-                 scale=4, inplace=True, bn_params={}):
+    def __init__(self, channels, context=[0], bias=False, scale=4, inplace=True,
+                 affine_type="tdnn-affine", bn_params={}):
         super().__init__()
-        default_bn_params = {
-            "momentum": 0.1, "affine": True, "track_running_stats": True
-        }
+        default_bn_params = {"momentum": 0.1, "affine": True, "track_running_stats": True}
         bn_params = utils.assign_params_dict(default_bn_params, bn_params)
 
         assert channels % scale == 0, "{} % {} != 0".format(channels, scale)
@@ -43,7 +41,8 @@ class Res2Conv1dReluBn(nn.Module):
         self.convs = []
         self.bns = []
         for i in range(self.nums):
-            self.convs.append(nn.Conv1d(self.width, self.width, kernel_size, stride, padding, dilation, bias=bias))
+            self.convs.append(ReluBatchNormTdnnLayer(self.width, self.width, context, affine_type,
+                                                     bias=bias, nonlinearity="", bn=False))
             self.bns.append(nn.BatchNorm1d(self.width, **bn_params))
         self.convs = nn.ModuleList(self.convs)
         self.bns = nn.ModuleList(self.bns)
@@ -67,27 +66,27 @@ class Res2Conv1dReluBn(nn.Module):
         return out
 
 
-def SE_Res2Block(channels, kernel_size, stride, padding, dilation, scale, tdnn_layer_params={}):
+def SE_Res2Block(channels, context, scale, tdnn_layer_params={}):
     ''' SE-Res2Block.
         Note: residual connection is implemented in the ECAPA_TDNN model, not here.
     '''
     return nn.Sequential(
         ReluBatchNormTdnnLayer(channels, channels, **tdnn_layer_params),
-        Res2Conv1dReluBn(channels, kernel_size, stride, padding, dilation, scale=scale,
-                         bn_params=tdnn_layer_params["bn_params"]),
+        Res2Conv1dReluBn(channels, context, scale=scale, bn_params=tdnn_layer_params["bn_params"],
+                        affine_type=tdnn_layer_params["affine_type"]),
         ReluBatchNormTdnnLayer(channels, channels, **tdnn_layer_params),
-        SEBlock(channels, ratio=4)
+        SEBlock(channels, ratio=4, affine_type=tdnn_layer_params["affine_type"])
     )
 
 
 class AttentiveStatsPool(nn.Module):
     ''' Attentive weighted mean and standard deviation pooling.
     '''
-    def __init__(self, in_dim, bottleneck_dim):
+    def __init__(self, in_dim, bottleneck_dim, affine_type):
         super().__init__()
         # Use Conv1d with stride == 1 rather than Linear, then we don't need to transpose inputs.
-        self.linear1 = nn.Conv1d(in_dim, bottleneck_dim, kernel_size=1) # equals W and b in the paper
-        self.linear2 = nn.Conv1d(bottleneck_dim, in_dim, kernel_size=1) # equals V and k in the paper
+        self.linear1 = ReluBatchNormTdnnLayer(in_dim, bottleneck_dim, affine_type=affine_type, nonlinearity="", bn=False)
+        self.linear2 = ReluBatchNormTdnnLayer(bottleneck_dim, in_dim, affine_type=affine_type, nonlinearity="", bn=False)
 
     def forward(self, x):
         # DON'T use ReLU here! In experiments, I find ReLU hard to converge.
@@ -103,9 +102,9 @@ class ECAPA_TDNN(TopVirtualNnet):
     def init(self, inputs_dim, num_targets, channels=512, emb_dim=192,
              tdnn_layer_params={}, layer5_params={}, emb_layer_params={},
              margin_loss=False, margin_loss_params={},
-             use_step=False, step_params={},
-             training=True):
+             use_step=False, step_params={}, training=True):
         default_tdnn_layer_params = {
+            "affine_type": 'tdnn-affine',
             "nonlinearity": 'relu', "nonlinearity_params": {"inplace": True},
             "bn-relu": False, "bn": True, "bn_params": {"momentum": 0.5, "affine": False, "track_running_stats": True}
         }
@@ -140,16 +139,16 @@ class ECAPA_TDNN(TopVirtualNnet):
         self.use_step = use_step
         self.step_params = step_params
 
-        # self.layer1 = Conv1dReluBn(in_channels, channels, kernel_size=5, padding=2)
         self.layer1 = ReluBatchNormTdnnLayer(inputs_dim, channels, [-2, -1, 0, 1, 2], **tdnn_layer_params)
-        self.layer2 = SE_Res2Block(channels, 3, 1, 2, 2, 8, tdnn_layer_params)
-        self.layer3 = SE_Res2Block(channels, 3, 1, 3, 3, 8, tdnn_layer_params)
-        self.layer4 = SE_Res2Block(channels, 3, 1, 4, 4, 8, tdnn_layer_params)
+        # channels, kernel_size, stride, padding, dilation, scale
+        self.layer2 = SE_Res2Block(channels, [-2, 0, 2], 8, tdnn_layer_params)
+        self.layer3 = SE_Res2Block(channels, [-3, 0, 3], 8, tdnn_layer_params)
+        self.layer4 = SE_Res2Block(channels, [-4, 0, 4], 8, tdnn_layer_params)
 
         cat_channels = channels * 3
         self.layer5 = ReluBatchNormTdnnLayer(cat_channels, cat_channels, **layer5_params)
 
-        self.pooling = AttentiveStatsPool(cat_channels, 128)
+        self.pooling = AttentiveStatsPool(cat_channels, 128, tdnn_layer_params["affine_type"])
 
         self.bn1 = nn.BatchNorm1d(cat_channels * 2, **tdnn_layer_params["bn_params"])
         self.emb_layer = ReluBatchNormTdnnLayer(cat_channels * 2, emb_dim, **emb_layer_params)
@@ -162,7 +161,7 @@ class ECAPA_TDNN(TopVirtualNnet):
             if margin_loss:
                 self.loss = MarginSoftmaxLoss(emb_dim, num_targets, **margin_loss_params)
             else:
-                self.loss = SoftmaxLoss(emb_dim, num_targets)
+                self.loss = SoftmaxLoss(emb_dim, num_targets, affine_type=tdnn_layer_params["affine_type"])
 
     @utils.for_device_free
     def forward(self, inputs):
@@ -248,8 +247,8 @@ class ECAPA_TDNN(TopVirtualNnet):
 
 if __name__ == '__main__':
     # Input size: batch_size * seq_len * feat_dim
-    x = torch.zeros(512, 26, 200)
-    model = ECAPA_TDNN(inputs_dim=26, num_targets=1211, channels=512, emb_dim=192)
+    x = torch.zeros(128, 80, 200)
+    model = ECAPA_TDNN(inputs_dim=80, num_targets=5994, channels=512, emb_dim=192)
     # out = model(x)
     print(model)
     # print(out.shape)    # should be [2, 192]

@@ -79,7 +79,7 @@ class LRSchedulerWrapper():
             self.lr_scheduler = torch.optim.lr_scheduler.CyclicLR(base_optimizer, base_lr, max_lr, **split_params["cyclic"])
         elif self.name == "1cycle":
             max_lr = split_params["1cycle"].pop("learn_rate")
-            self.lr_scheduler = optim.lr_scheduler.OneCycleLR(base_optimizer, max_lr, **split_params["1cycle"])
+            self.lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(base_optimizer, max_lr, **split_params["1cycle"])
         elif self.name == "stepLR":
             self.lr_scheduler = torch.optim.lr_scheduler.StepLR(base_optimizer, **split_params["stepLR"])
         elif self.name == "warmR":
@@ -125,7 +125,7 @@ class LRSchedulerWrapper():
             elif self.lr_decay_step == 0:
                 self.lr_scheduler.step(training_point[0])
         elif self.name == "cyclic":
-            self.lr_scheduler.step(training_point[0] * training_point[2] + training_point[1] + 1)
+            self.lr_scheduler.step()
         elif self.name == "1cycle":
             self.lr_scheduler.step(training_point[0] * training_point[2] + training_point[1] + 1)
         elif self.name == "stepLR":

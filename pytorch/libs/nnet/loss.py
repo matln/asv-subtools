@@ -91,11 +91,14 @@ class SoftmaxLoss(TopVirtualLoss):
     """ An usual log-softmax loss with affine component.
     """
 
-    def init(self, input_dim, num_targets, t=1, reduction='mean', special_init=False):
-        self.affine = TdnnAffine(input_dim, num_targets)
-        # self.affine = torch.nn.Linear(input_dim, num_targets)
-        # torch.nn.init.normal_(self.affine.weight, 0., 0.01)  # It seems better.
-        # torch.nn.init.constant_(self.affine.bias, 0.)
+    def init(self, input_dim, num_targets, t=1, reduction='mean', special_init=False,
+             affine_type="tdnn-affine"):
+        if affine_type == "tdnn-affine":
+            self.affine = TdnnAffine(input_dim, num_targets)
+        else:
+            self.affine = torch.nn.Linear(input_dim, num_targets)
+            torch.nn.init.normal_(self.affine.weight, 0., 0.01)  # It seems better.
+            torch.nn.init.constant_(self.affine.bias, 0.)
         self.t = t  # temperature
         # CrossEntropyLoss() has included the LogSoftmax, so do not add this function extra.
         self.loss_function = torch.nn.CrossEntropyLoss(reduction=reduction)

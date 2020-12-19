@@ -575,7 +575,7 @@ class SEBlock(torch.nn.Module):
        lijianchen 2020-11-18
     """
 
-    def __init__(self, input_dim, ratio=16, inplace=True):
+    def __init__(self, input_dim, ratio=16, inplace=True, affine_type="tdnn-affine"):
         '''
         @ratio: a reduction ratio which allows us to vary the capacity and computational cost of the SE blocks 
         in the network.
@@ -584,13 +584,15 @@ class SEBlock(torch.nn.Module):
 
         self.input_dim = input_dim
 
-        self.fc_1 = TdnnAffine(input_dim, input_dim//ratio, bias=False)
-        # self.fc_1 = torch.nn.Linear(input_dim, input_dim // ratio, bias=False)
+        if affine_type == "tdnn-affine":
+            self.fc_1 = TdnnAffine(input_dim, input_dim//ratio, bias=False)
+            self.fc_2 = TdnnAffine(input_dim//ratio, input_dim, bias=False)
+        else:
+            self.fc_1 = torch.nn.Linear(input_dim, input_dim // ratio, bias=False)
+            self.fc_2 = torch.nn.Linear(input_dim // ratio, input_dim, bias=False)
         torch.nn.init.kaiming_uniform_(self.fc_1.weight, mode='fan_out', nonlinearity='relu')
-        self.relu = torch.nn.ReLU(inplace=inplace)
-        self.fc_2 = TdnnAffine(input_dim//ratio, input_dim, bias=False)
-        # self.fc_2 = torch.nn.Linear(input_dim // ratio, input_dim, bias=False)
         torch.nn.init.xavier_normal_(self.fc_2.weight, gain=1.0)
+        self.relu = torch.nn.ReLU(inplace=inplace)
         self.sigmoid = torch.nn.Sigmoid()
 
     def forward(self, inputs):

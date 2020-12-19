@@ -10,7 +10,7 @@ second=3 # <score-field 1-based>
 . ${SUBTOOLS}/parse_options.sh
 
 if [[ $# != 2 ]]; then
-  echo "[exit] Num of parameters is not equal to 4"
+  echo "[exit] Num of parameters is not equal to 2"
   echo "usage:$0 [--write-file \"\" | filepath] <trials> <score-file>"
   exit 1
 fi

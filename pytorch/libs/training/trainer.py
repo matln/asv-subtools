@@ -322,8 +322,8 @@ class SimpleTrainer(_BaseTrainer):
                             # For ReduceLROnPlateau.
                             lr_scheduler_params["valid_metric"] = (valid_loss, valid_acc)
 
-                            if lr_scheduler.name == "warmR" and utils.is_main_training():
-                                if this_epoch >= epochs - 1 and valid_acc > best_valid_acc:
+                            if lr_scheduler.name == "warmR":
+                                if this_epoch >= epochs - 1 and valid_acc >= best_valid_acc:
                                     best_valid_acc = valid_acc
                                     self.save_model(from_epoch=False)
                         else:
@@ -341,13 +341,18 @@ class SimpleTrainer(_BaseTrainer):
                                 if current_lr < last_lr:
                                     last_lr = current_lr
                                     self.save_model(from_epoch=False)
+                            if lr_scheduler.name == "cyclic" and utils.is_main_training():
+                                cyclic_size = lr_scheduler.lr_scheduler.total_size
+                                current_iter = self.training_point[0] * self.training_point[2] + self.training_point[1] + 1
+                                if current_iter % cyclic_size == 0 and current_iter != 1:
+                                    self.save_model(from_epoch=False)
                         else:
                             # For some pytorch lr_schedulers, but it is not available for all.
                             lr_scheduler.step(this_epoch)
                     if utils.is_main_training():
                         self.reporter.update(snapshot)
                 if utils.is_main_training():
-                    if this_epoch >= epochs - 3:
+                    if this_epoch >= epochs - 2 and lr_scheduler.name == "warmR":
                         self.save_model()
             if utils.is_main_training():
                 self.reporter.finish()

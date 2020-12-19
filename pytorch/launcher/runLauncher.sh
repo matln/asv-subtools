@@ -4,6 +4,8 @@
 
 stage=0
 endstage=1
+# debug mode
+pdb=false
 # horovod, ddp(DistributedDataParallel), dp(DataParallel)
 multi_gpu_solution="ddp"
 master_addr="127.0.0.1"
@@ -69,7 +71,11 @@ if [ $num_gpu -gt 1 ]; then
     echo "[exit] Do not support $multi_gpu_solution solution for multi-GPU training." && exit 1
   fi
 else
-  train_cmd="python3"
+  if [[ "$pdb" == 'true' ]]; then
+    train_cmd="python3 -m pdb"
+  else
+    train_cmd="python3"
+  fi
 fi
 
 # Split this two stage to free GPU memory of model by an exit-python way 

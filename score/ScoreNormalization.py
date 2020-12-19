@@ -39,7 +39,8 @@ def get_args():
     parser.add_argument("--cross-select", type=str, default="false", choices=["true", "false"],
                         help="Used in AS-Norm. "
                              "If true, select top n enroll/test keys by test/enroll_cohort scores. "
-                             "If false, select top n enroll/test keys by enroll/test_cohort scores.")
+                             "If false, select top n enroll/test keys by enroll/test_cohort scores."
+                             "see details in: Analysis of Score Normalization in Multilingual Speaker Recognition")
 
     parser.add_argument("input_score", metavar="enroll-test-score", type=str,
                         help="Original score path for <enroll, test>.")
@@ -68,7 +69,7 @@ def save_score(score, score_path, sep=" "):
     df.to_csv(score_path, header=None, sep=sep, index=False)
 
 def snorm(args):
-    """ Symmetrical Normalization.
+    """ Symmetric Normalization.
     Reference: Kenny, P. (2010). Bayesian speaker verification with heavy-tailed priors. Paper presented at the Odyssey.
     """
     enroll_test_names = ["enroll", "test", "score"]
@@ -144,7 +145,7 @@ def asnorm(args):
     if args.cross_select == "true":
         logger.info("Select top n scores by cross method.")
         # The SQL grammar is used to implement the cross selection based on pandas.
-        # Let A is enroll_test table, B is enroll_cohort table and C is test_cohort table.
+        # Let A is enroll_test table, B is test_cohort table and C is enroll_cohort table.
         # To get a test_group (select "test:cohort" pairs) where the cohort utterances' scores is selected by enroll_top_n,
         # we should get the D table by concatenating AxC with "enroll" key firstly and then
         # we could get the target E table by concatenating BxD wiht "test"&"cohort" key.

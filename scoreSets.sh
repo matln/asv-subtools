@@ -3,6 +3,7 @@
 # Copyright xmuspeech (Author:Snowdar 2018-11-07)
 
 set -e
+echo "$0 $*"
 
 #####################
 # All processes are tuning and you could use bool varibles conveniently to ignore what process you don't need.
