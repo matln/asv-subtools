@@ -307,11 +307,18 @@ class SimpleTrainer(_BaseTrainer):
                     # and some simple schedulers whose step() parameter is 'epoch' only are supported.
                     lr_scheduler_params = {"training_point": self.training_point}
 
-                    if utils.is_main_training() or lr_scheduler.name == "reduceP":
-                        if data.valid_loader and (self.reporter.is_report(self.training_point) or
-                                                  lr_scheduler.is_reduce_point(self.training_point)):
+                    valid_computed = False
+                    if lr_scheduler.name == "reduceP" and lr_scheduler.is_reduce_point(self.training_point):
+                        assert data.valid_loader is not None
+                        valid_loss, valid_acc = self.compute_validation(data.valid_loader)
+                        lr_scheduler_params["valid_metric"] = (valid_loss, valid_acc)
+                        valid_computed = True
 
-                            valid_loss, valid_acc = self.compute_validation(data.valid_loader)
+                    if utils.is_main_training():
+                        if valid_computed or (data.valid_loader and self.reporter.is_report(self.training_point)):
+                            if not valid_computed:
+                                valid_loss, valid_acc = self.compute_validation(data.valid_loader)
+                                valid_computed = False
 
                             # real_snapshot is set for tensorboard to avoid workspace problem
                             real_snapshot = {"train_loss": loss, "valid_loss": valid_loss,
@@ -336,16 +343,19 @@ class SimpleTrainer(_BaseTrainer):
                         # It is not convenient to wrap lr_scheduler (doing).
                         if isinstance(lr_scheduler, LRSchedulerWrapper):
                             lr_scheduler.step(**lr_scheduler_params)
-                            if lr_scheduler.name == "reduceP" and utils.is_main_training():
+                            if utils.is_main_training():
                                 current_lr = base_optimizer.state_dict()['param_groups'][0]['lr']
-                                if current_lr < last_lr:
-                                    last_lr = current_lr
-                                    self.save_model(from_epoch=False)
-                            if lr_scheduler.name == "cyclic" and utils.is_main_training():
-                                cyclic_size = lr_scheduler.lr_scheduler.total_size
-                                current_iter = self.training_point[0] * self.training_point[2] + self.training_point[1] + 1
-                                if current_iter % cyclic_size == 0 and current_iter != 1:
-                                    self.save_model(from_epoch=False)
+                                if lr_scheduler.name == "reduceP":
+                                    if current_lr < last_lr:
+                                        last_lr = current_lr
+                                        self.save_model(from_epoch=False)
+                                    elif current_lr <= lr_scheduler.min_lr and lr_scheduler.is_reduce_point(self.training_point):
+                                        self.save_model(from_epoch=False)
+                                elif lr_scheduler.name == "cyclic" and utils.is_main_training():
+                                    cyclic_size = lr_scheduler.lr_scheduler.total_size
+                                    current_iter = self.training_point[0] * self.training_point[2] + self.training_point[1] + 1
+                                    if current_iter % cyclic_size == 0 and current_iter != 1:
+                                        self.save_model(from_epoch=False)
                         else:
                             # For some pytorch lr_schedulers, but it is not available for all.
                             lr_scheduler.step(this_epoch)
