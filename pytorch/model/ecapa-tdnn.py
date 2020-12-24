@@ -100,16 +100,16 @@ class AttentiveStatsPool(nn.Module):
 
 class ECAPA_TDNN(TopVirtualNnet):
     def init(self, inputs_dim, num_targets, channels=512, emb_dim=192,
-             tdnn_layer_params={}, layer5_params={}, emb_layer_params={},
+             tdnn_layer_params={}, layer5_params={}, layer6=False, layer7_params={},
              margin_loss=False, margin_loss_params={},
-             use_step=False, step_params={}, training=True):
+             use_step=False, step_params={}, training=True, extracted_embedding="near"):
         default_tdnn_layer_params = {
             "affine_type": 'tdnn-affine',
             "nonlinearity": 'relu', "nonlinearity_params": {"inplace": True},
             "bn-relu": False, "bn": True, "bn_params": {"momentum": 0.5, "affine": False, "track_running_stats": True}
         }
         default_layer5_params = {"nonlinearity": 'relu', "bn": False}
-        default_emb_layer_params = {"nonlinearity": '', "bn": True}
+        default_layer7_params = {"nonlinearity": '', "bn": True}
         default_margin_loss_params = {
             "method": "am", "m": 0.2,
             "feature_normalize": True, "s": 30,
@@ -131,13 +131,14 @@ class ECAPA_TDNN(TopVirtualNnet):
         tdnn_layer_params = utils.assign_params_dict(default_tdnn_layer_params, tdnn_layer_params)
         layer5_params = utils.assign_params_dict(default_layer5_params, layer5_params)
         layer5_params = utils.assign_params_dict(default_tdnn_layer_params, layer5_params)
-        emb_layer_params = utils.assign_params_dict(default_emb_layer_params, emb_layer_params)
-        emb_layer_params = utils.assign_params_dict(default_tdnn_layer_params, emb_layer_params)
+        layer7_params = utils.assign_params_dict(default_layer7_params, layer7_params)
+        layer7_params = utils.assign_params_dict(default_tdnn_layer_params, layer7_params)
         margin_loss_params = utils.assign_params_dict(default_margin_loss_params, margin_loss_params)
         step_params = utils.assign_params_dict(default_step_params, step_params)
 
         self.use_step = use_step
         self.step_params = step_params
+        self.extracted_embedding = extracted_embedding  # For extract.
 
         self.layer1 = ReluBatchNormTdnnLayer(inputs_dim, channels, [-2, -1, 0, 1, 2], **tdnn_layer_params)
         # channels, kernel_size, stride, padding, dilation, scale
@@ -151,7 +152,15 @@ class ECAPA_TDNN(TopVirtualNnet):
         self.pooling = AttentiveStatsPool(cat_channels, 128, tdnn_layer_params["affine_type"])
 
         self.bn1 = nn.BatchNorm1d(cat_channels * 2, **tdnn_layer_params["bn_params"])
-        self.emb_layer = ReluBatchNormTdnnLayer(cat_channels * 2, emb_dim, **emb_layer_params)
+
+        # Segment level
+        if layer6:
+            self.layer6 = ReluBatchNormTdnnLayer(cat_channels * 2, 512, **tdnn_layer_params)
+            layer7_dim = 512
+        else:
+            self.layer6 = None
+            layer7_dim = cat_channels * 2
+        self.layer7 = ReluBatchNormTdnnLayer(layer7_dim, emb_dim, **layer7_params)
 
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
@@ -173,11 +182,13 @@ class ECAPA_TDNN(TopVirtualNnet):
         out3 = self.layer3(out1 + out2) + out1 + out2
         out4 = self.layer4(out1 + out2 + out3) + out1 + out2 + out3
 
+        # 在 channel 维连接
         out = torch.cat([out2, out3, out4], dim=1)
         # out = self.relu(self.conv(out))
         out = self.layer5(out)
         out = self.bn1(self.pooling(out))
-        out = self.emb_layer(out)
+        out = self.auto(self.layer6, out)
+        out = self.layer7(out)
         return out
       
     @utils.for_device_free
@@ -207,7 +218,27 @@ class ECAPA_TDNN(TopVirtualNnet):
         inputs: a 3-dimensional tensor with batch-dim = 1 or normal features matrix
         return: an 1-dimensional vector after processed by decorator
         """
-        xvector = self.forward(inputs)
+        out1 = self.layer1(inputs)
+        out2 = self.layer2(out1) + out1
+        out3 = self.layer3(out1 + out2) + out1 + out2
+        out4 = self.layer4(out1 + out2 + out3) + out1 + out2 + out3
+
+        # 在 channel 维连接
+        out = torch.cat([out2, out3, out4], dim=1)
+        # out = self.relu(self.conv(out))
+        out = self.layer5(out)
+        out = self.bn1(self.pooling(out))
+
+        if self.extracted_embedding == "far":
+            assert self.layer6 is not None
+            xvector = self.layer6.affine(out)
+        elif self.extracted_embedding == "near_affine":
+            out = self.auto(self.layer6, out)
+            xvector = self.layer7.affine(out)
+        elif self.extracted_embedding == "near":
+            out = self.auto(self.layer6, out)
+            xvector = self.layer7(out)
+
         return xvector
 
     def get_warmR_T(T_0, T_mult, epoch):
