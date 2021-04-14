@@ -171,7 +171,7 @@ function mean(){
 	local num_utts=$4
 	
 	specifier=ark
-	[ "${#vectorfile#*.}" == "scp" ] && specifier=scp
+	[ "${vectorfile##*.}" == "scp" ] && specifier=scp
 	
 	ivector-mean ark:"$spk2utt" $specifier:"$vectorfile" ark:"$outfile" ark,t:"$num_utts" || exit 1
 	return 0

@@ -362,7 +362,8 @@ class SimpleTrainer(_BaseTrainer):
                     if utils.is_main_training():
                         self.reporter.update(snapshot)
                 if utils.is_main_training():
-                    if this_epoch >= epochs - 2 and lr_scheduler.name == "warmR":
+                    if this_epoch >= epochs - 5:
+                        print(current_lr)
                         self.save_model()
             if utils.is_main_training():
                 self.reporter.finish()
