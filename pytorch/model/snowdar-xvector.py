@@ -27,7 +27,7 @@ class Xvector(TopVirtualNnet):
              specaugment=False, specaugment_params={},
              aug_dropout=0., context_dropout=0., hidden_dropout=0., dropout_params={},
              SE=False, se_ratio=4,
-             tdnn_layer_params={},
+             tdnn_layer_params={}, emb_dim=512,
              tdnn6=True, tdnn7_params={},
              pooling="statistics", pooling_params={},
              margin_loss=False, margin_loss_params={},
@@ -153,15 +153,15 @@ class Xvector(TopVirtualNnet):
         if tdnn7_params["nonlinearity"] == "default":
             tdnn7_params["nonlinearity"] = tdnn_layer_params["nonlinearity"]
 
-        self.tdnn7 = ReluBatchNormTdnnLayer(tdnn7_dim, 512, **tdnn7_params)
+        self.tdnn7 = ReluBatchNormTdnnLayer(tdnn7_dim, emb_dim, **tdnn7_params)
 
         # Loss
         # Do not need when extracting embedding.
         if training:
             if margin_loss:
-                self.loss = MarginSoftmaxLoss(512, num_targets, **margin_loss_params)
+                self.loss = MarginSoftmaxLoss(emb_dim, num_targets, **margin_loss_params)
             else:
-                self.loss = SoftmaxLoss(512, num_targets)
+                self.loss = SoftmaxLoss(emb_dim, num_targets)
 
             self.wrapper_loss = MixupLoss(self.loss, self.mixup) if mixup else None
 

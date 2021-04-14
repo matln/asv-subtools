@@ -101,7 +101,7 @@ class AttentiveStatsPool(nn.Module):
 class ECAPA_TDNN(TopVirtualNnet):
     def init(self, inputs_dim, num_targets, channels=512, emb_dim=192,
              tdnn_layer_params={}, layer5_params={}, layer6=False, layer7_params={},
-             margin_loss=False, margin_loss_params={},
+             margin_loss=False, margin_loss_params={}, pooling="statistics",
              use_step=False, step_params={}, training=True, extracted_embedding="near"):
         default_tdnn_layer_params = {
             "affine_type": 'tdnn-affine',
@@ -149,9 +149,13 @@ class ECAPA_TDNN(TopVirtualNnet):
         cat_channels = channels * 3
         self.layer5 = ReluBatchNormTdnnLayer(cat_channels, cat_channels, **layer5_params)
 
-        self.pooling = AttentiveStatsPool(cat_channels, 128, tdnn_layer_params["affine_type"])
+        if pooling == "attention":
+            self.pooling = AttentiveStatsPool(cat_channels, 128, tdnn_layer_params["affine_type"])
+        else:
+            self.pooling = StatisticsPooling(cat_channels, stddev=True)
 
-        self.bn1 = nn.BatchNorm1d(cat_channels * 2, **tdnn_layer_params["bn_params"])
+        # self.bn1 = nn.BatchNorm1d(cat_channels * 2, **tdnn_layer_params["bn_params"])
+
 
         # Segment level
         if layer6:
@@ -184,9 +188,9 @@ class ECAPA_TDNN(TopVirtualNnet):
 
         # 在 channel 维连接
         out = torch.cat([out2, out3, out4], dim=1)
-        # out = self.relu(self.conv(out))
         out = self.layer5(out)
-        out = self.bn1(self.pooling(out))
+        # out = self.bn1(self.pooling(out))
+        out = self.pooling(out)
         out = self.auto(self.layer6, out)
         out = self.layer7(out)
         return out
@@ -225,9 +229,9 @@ class ECAPA_TDNN(TopVirtualNnet):
 
         # 在 channel 维连接
         out = torch.cat([out2, out3, out4], dim=1)
-        # out = self.relu(self.conv(out))
         out = self.layer5(out)
-        out = self.bn1(self.pooling(out))
+        # out = self.bn1(self.pooling(out))
+        out = self.pooling(out)
 
         if self.extracted_embedding == "far":
             assert self.layer6 is not None
