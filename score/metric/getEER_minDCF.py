@@ -1,3 +1,4 @@
+#!/data/lijianchen/miniconda3/envs/pytorch/bin/python
 # -*- coding: utf-8 -*-
 """
     Define metric function (minDCF, EER)
@@ -64,13 +65,14 @@ def compute_eer(scores, labels, eps=1e-6, showfig=False):
     Cfa = 1
     avg = 0
 
-    for Ptarget in [0.01, 0.001]:
+    # for Ptarget in [0.01, 0.001]:
+    for Ptarget in [0.01]:
         Cdet = Cmiss * FNR * Ptarget + Cfa * FPR * (1 - Ptarget)
         Cdef = min(Cmiss * Ptarget, Cfa * (1 - Ptarget))
         minDCF = min(Cdet) / Cdef
         avg += minDCF
 
-    avg = avg / 2
+    # avg = avg / 2
 
     # figure
     if showfig:

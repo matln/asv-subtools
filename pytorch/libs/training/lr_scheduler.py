@@ -99,8 +99,7 @@ class LRSchedulerWrapper():
             else:
                 raise ValueError(
                     "Do not support {} metric for ReduceLROnPlateau strategy.".format(self.metric))
-            self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(base_optimizer, mode=mode,
-                                                                           **split_params["reduceP"])
+            self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(base_optimizer, mode=mode, **split_params["reduceP"])
             self.init = False
             if utils.use_horovod():
                 raise TypeError(

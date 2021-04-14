@@ -148,7 +148,7 @@ score_force_clear=true    # true: line 331，强制重新计算得分
 ################################################################################
 # check (score/process.sh): 检查 $enroll_process 中的操作是否都支持，第二个参数是支持的操作
 check "$enroll_process" "lda submean whiten norm mean" enroll_process
-check "$test_process" "lda submean whiten norm" test_process
+check "$test_process" "lda submean whiten norm mean" test_process
 
 check "$lda_process" "submean whiten norm trainlda" lda_process
 check "$submean_process" "lda whiten norm getmean" submean_process
@@ -336,7 +336,7 @@ for the_classfier in ${score//-/ }; do
   outscores="$outscores ${outname}.score"
   for the_metric in ${metric//-/ }; do
     [ "$the_metric" == "eer" ] && "${SUBTOOLS}"/score/metric/computeEER.sh --write-file "${outname}".eer $trials "${outname}".score && outsets="$outsets ${outname}.eer"
-		[ "$the_metric" == "minDCF" ] && python "${SUBTOOLS}"/score/metric/getEER_minDCF.py --scores "${outname}".score --trials $trials > "${outname}".minDCF
+		[ "$the_metric" == "minDCF" ] && "${SUBTOOLS}"/score/metric/getEER_minDCF.py --scores "${outname}".score --trials $trials > "${outname}".minDCF
     [ "$the_metric" == "Cavg" ] && "${SUBTOOLS}"/score/metric/computeCavg.py -pairs $trials "${outname}".score > "${outname}".Cavg && \
       cat "${outname}".Cavg && outsets="$outsets ${outname}.Cavg"
   done
