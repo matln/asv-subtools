@@ -60,7 +60,8 @@ class KaldiDataset():
 
         # Should keep spk2utt only now.
         self.spk_first_files = [
-            ("spk2utt", "spk2utt", "str", True)]
+            ("spk2utt", "spk2utt", "str", True), 
+            ("spk2int", "spk2int", "int", False)]
 
         # Process parameters
         if data_dir == "":  # Here should use "." rather than "" to express current directory.
@@ -132,16 +133,19 @@ class KaldiDataset():
         self.feat_dim = kaldi_io.read_mat(
             self.feats_scp[list(self.feats_scp.keys())[0]]).shape[1] if "feats_scp" in self.loaded_attr else None
 
-    def generate(self, attr: str):
+    def generate(self, attr: str, spk2int: dict = None):
         # generate utt2spk_int
         if attr == "utt2spk_int":
             if attr not in self.loaded_attr:
-                spk2int = {}
                 self.utt2spk_int = {}
-                for index, spk in enumerate(self.spk2utt):
-                    spk2int[spk] = index
+                if spk2int is None:
+                    self.spk2int = {}
+                    for index, spk in enumerate(self.spk2utt):
+                        self.spk2int[spk] = index
+                else:
+                    self.spk2int = spk2int
                 for utt, spk in self.utt2spk.items():
-                    self.utt2spk_int[utt] = spk2int[spk]
+                    self.utt2spk_int[utt] = self.spk2int[spk]
                 self.loaded_attr.append(attr)
             else:
                 logger.warn("The utt2spk_int is exist.")

@@ -61,9 +61,10 @@ def get_args():
                         default=False, choices=["true", "false"],
                         help="Drop the last sample of every utterance or not.")
 
-    parser.add_argument("--valid-sample", type=str, action=kaldi_common.StrToBoolAction,
-                        default=True, choices=["true", "false"],
-                        help="Get the valid samples or not.")
+    parser.add_argument("--valid-dir", type=str, default="", help="A kaldi datadir.")
+
+    parser.add_argument("--valid-split-from-trainset", type=str, action=kaldi_common.StrToBoolAction,
+                        default=True, choices=["true", "false"], help="")
 
     parser.add_argument("--valid-split-type", type=str, default='--total-spk',
                         choices=["--default", "--per-spk", "--total-spk"],
@@ -73,7 +74,7 @@ def get_args():
                         help="The num utts to split for valid. 1024 for --total-spk.")
 
     parser.add_argument("--valid-sample-type", type=str, default='every_utt',
-                        choices=["speaker_balance", "sequential", "every_utt"],
+                        choices=["speaker_balance", "sequential", "every_utt", "full_length"],
                         help="The sample type for valid set.")
 
     parser.add_argument("--valid-chunk-num", type=int, default=2,
@@ -105,12 +106,16 @@ def get_args():
 def get_chunk_egs(args):
     logger.info("Load kaldi datadir {0}".format(args.data_dir))
     expected_files = args.expected_files.split(',')
-    dataset = KaldiDataset.load_data_dir(
-        args.data_dir, expected_files=expected_files)
+    dataset = KaldiDataset.load_data_dir(args.data_dir, expected_files=expected_files)
     if "utt2spk_int" not in expected_files:
         dataset.generate("utt2spk_int")
 
-    if args.valid_sample:
+    if args.valid_dir != "":
+        valid = KaldiDataset.load_data_dir(args.valid_dir, expected_files=expected_files)
+        if "utt2spk_int" not in expected_files:
+            valid.generate("utt2spk_int", dataset.spk2int)
+        trainset = dataset
+    elif args.valid_split_from_trainset is True:
         logger.info("Split valid dataset from {0}".format(args.data_dir))
         if args.valid_num_utts > len(dataset) // 10:
             logger.info("Warning: the --valid-num-utts ({0}) of valid set is out "
@@ -146,7 +151,7 @@ def get_chunk_egs(args):
                                     chunk_num_selection=args.chunk_num, scale=args.scale,
                                     overlap=args.overlap, drop_last=args.drop_last, seed=args.seed)
 
-    if args.valid_sample:
+    if args.valid_dir != "" or args.valid_split_from_trainset is True:
         valid_sample = ChunkSamples(valid, args.chunk_size, chunk_type=args.valid_sample_type,
                                     chunk_num_selection=args.valid_chunk_num,
                                     scale=args.valid_scale, overlap=args.overlap,
@@ -158,7 +163,7 @@ def get_chunk_egs(args):
 
     trainset_samples.save("{0}/train.egs.csv".format(args.save_dir))
 
-    if args.valid_sample:
+    if args.valid_dir != "" or args.valid_split_from_trainset is True:
         valid_sample.save("{0}/validation.egs.csv".format(args.save_dir))
 
     with open("{0}/info/num_frames".format(args.save_dir), 'w') as writer:

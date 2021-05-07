@@ -40,7 +40,10 @@ class ChunkSamples():
         np.random.seed(seed)
 
         # chunk_samples: table [[]]
-        self.head = ['utt-id', 'ark-path', 'start-position', 'end-position', 'class-label']
+        if self.chunk_type == "full_length":
+            self.head = ['utt-id', 'ark-path', 'class-label']
+        else:
+            self.head = ['utt-id', 'ark-path', 'start-position', 'end-position', 'class-label']
         self.chunk_samples = self.__sample()
 
     def __sample(self):
@@ -172,6 +175,12 @@ class ChunkSamples():
 
             for chunk in chunk_selected:
                 chunk_samples.append(chunk.split())
+
+        # 自己通过valid_data指定的验证集（测试集），不分割chunk
+        elif self.chunk_type == "full_length":
+            for i, utt in enumerate(self.dataset.utt2spk.keys()):
+                ark_path = self.dataset.feats_scp[utt]
+                chunk_samples.append([utt, ark_path, self.dataset.utt2spk_int[utt]])
 
         else:
             raise TypeError(

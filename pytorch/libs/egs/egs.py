@@ -121,7 +121,8 @@ class BaseBunch():
     """
 
     def __init__(self, trainset, valid=None, use_fast_loader=False, max_prefetch=10,
-                 batch_size=512, shuffle=True, num_workers=0, pin_memory=False, drop_last=True):
+                 batch_size=512, valid_batch_size=512, shuffle=True, num_workers=0,
+                 pin_memory=False, drop_last=True):
 
         num_samples = len(trainset)
         num_gpu = 1
@@ -164,7 +165,7 @@ class BaseBunch():
                              "will get 0 batch.".format(num_gpu, len(trainset) / num_gpu, batch_size, drop_last))
 
         if valid is not None:
-            valid_batch_size = min(batch_size, len(valid))  # To save GPU memory
+            valid_batch_size = min(valid_batch_size, len(valid))  # To save GPU memory
 
             if len(valid) <= 0:
                 raise ValueError("Expected num_samples of valid > 0.")
