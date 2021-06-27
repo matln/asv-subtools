@@ -284,11 +284,9 @@ class MarginSoftmaxLoss(TopVirtualLoss):
         elif self.method == "aam":
             # Another implementation w.r.t cosine(theta+m) = cosine_theta * cos_m - sin_theta * sin_m
             # penalty_cosine_theta = self.cos_m * cosine_theta_target - self.sin_m * torch.sqrt((1-cosine_theta_target**2).clamp(min=0.))
-            penalty_cosine_theta = torch.cos(
-                torch.acos(cosine_theta_target) + self.m)
+            penalty_cosine_theta = torch.cos(torch.acos(cosine_theta_target) + self.m)
             if self.double:
-                double_cosine_theta = torch.cos(
-                    torch.acos(cosine_theta).add(-self.m))
+                double_cosine_theta = torch.cos(torch.acos(cosine_theta).add(-self.m))
         elif self.method == "sm1":
             # 可以自动调节惩罚项的大小，惩罚项线性减小
             # penalty_cosine_theta = cosine_theta_target - (1 - cosine_theta_target) * self.m

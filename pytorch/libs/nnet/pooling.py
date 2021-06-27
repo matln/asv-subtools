@@ -223,15 +223,23 @@ class AttentionAlphaComponent(torch.nn.Module):
                     first_groups = num_head
             # Add a relu-affine with affine_layers=2.
             self.relu_affine = True
-            self.first_affine = TdnnAffine(
-                input_dim, last_affine_input_dim, context=context, bias=bias, groups=first_groups)
-            self.relu = torch.nn.ReLU(inplace=True)
+            # 默认初始化是高斯初始化，训练出现nan
+            # self.first_affine = TdnnAffine(
+            #     input_dim, last_affine_input_dim, context=context, bias=bias, groups=first_groups)
+            # self.relu = torch.nn.ReLU(inplace=True)
+            self.first_affine = ReluBatchNormTdnnLayer(
+                input_dim, last_affine_input_dim, context=context,
+                bias=bias, groups=first_groups, nonlinearity="relu", bn=False)
         else:
             raise ValueError(
                 "Expected 1 or 2 affine layers, but got {}.", format(affine_layers))
 
-        self.last_affine = TdnnAffine(
-            last_affine_input_dim, final_dim * num_head, context=context, bias=bias, groups=last_groups)
+        # 默认初始化是高斯初始化，训练出现nan
+        # self.last_affine = TdnnAffine(
+        #     last_affine_input_dim, final_dim * num_head, context=context, bias=bias, groups=last_groups)
+        self.last_affine = ReluBatchNormTdnnLayer(
+            last_affine_input_dim, final_dim * num_head, context=context,
+            bias=bias, groups=last_groups, nonlinearity="", bn=False)
         # Dim=2 means to apply softmax in different frames-index (batch is a 3-dim tensor in this case).
         self.softmax = torch.nn.Softmax(dim=2)
 
@@ -248,14 +256,14 @@ class AttentionAlphaComponent(torch.nn.Module):
 
         x = inputs
         if self.relu_affine:
-            x = self.relu(self.first_affine(x))
+            # x = self.relu(self.first_affine(x))
+            x = self.first_affine(x)
         if self.num_head > 1 and self.temperature:
             if self.fixed:
                 t = self.t
             else:
                 t = 1 + self.t**2
-            x = self.last_affine(x).reshape(
-                batch_size, self.num_head, -1, chunk_size) / t
+            x = self.last_affine(x).reshape(batch_size, self.num_head, -1, chunk_size) / t
             return self.softmax(x.reshape(batch_size, -1, chunk_size))
         else:
             return self.softmax(self.last_affine(x))

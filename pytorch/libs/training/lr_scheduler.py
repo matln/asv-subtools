@@ -20,9 +20,11 @@ class LRSchedulerWrapper():
         #                         1e-1 for decouped weight decay (sgdw, adamw, radam, ralamb, adamod etc.)
         default_params = {
             "name": "warmR",
-
             "stepLR.step_size": 1,
             "stepLR.gamma": 0.9,
+
+            "MultiStepLR.milestones": [10, 20],
+            "MultiStepLR.gamma": 0.1,
 
             "cyclic.max_lr": 1e-3,
             "cyclic.base_lr": 1e-8,
@@ -82,6 +84,8 @@ class LRSchedulerWrapper():
             self.lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(base_optimizer, max_lr, **split_params["1cycle"])
         elif self.name == "stepLR":
             self.lr_scheduler = torch.optim.lr_scheduler.StepLR(base_optimizer, **split_params["stepLR"])
+        elif self.name == "MultiStepLR":
+            self.lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(base_optimizer, **split_params["MultiStepLR"])
         elif self.name == "warmR":
             # cosine annealing 的初始周期
             T_max = split_params["warmR"].pop("T_max")
@@ -128,6 +132,8 @@ class LRSchedulerWrapper():
         elif self.name == "1cycle":
             self.lr_scheduler.step(training_point[0] * training_point[2] + training_point[1] + 1)
         elif self.name == "stepLR":
+            self.lr_scheduler.step(training_point[0])
+        elif self.name == "MultiStepLR":
             self.lr_scheduler.step(training_point[0])
         elif self.name == "reduceP":
             # Sample a point in which the metrics of valid are computed and adjust learning rate at this point.

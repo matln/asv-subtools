@@ -20,7 +20,6 @@ write_utt2dur=true
 # End configuration section.
 
 echo "$0 $*"  # Print the command line for logging.
-echo "$1"
 
 # if [ -f subtools/path.sh ]; then . ./subtools/path.sh; fi
 . "${SUBTOOLS}"/parse_options.sh || exit 1;

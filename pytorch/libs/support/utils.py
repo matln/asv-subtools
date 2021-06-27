@@ -191,6 +191,7 @@ def create_model_from_py(model_blueprint, model_creation=""):
 
     sys.path.insert(0, os.path.dirname(model_blueprint))
     model_module_name = os.path.basename(model_blueprint).split('.')[0]
+    # 动态导入模块就是只知道str类型的模块名字符串，通过这个字符串导入模块
     model_module = __import__(model_module_name)
 
     if model_creation == "":

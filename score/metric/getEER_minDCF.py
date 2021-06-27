@@ -125,8 +125,10 @@ if __name__ == '__main__':
 
 
     eer, minDCF = compute_eer(scores, labels)
+    # eer, _ = compute_eer_sklearn(scores, labels)
     # print("{:.3f} {:.3f}".format(eer, minDCF))
     print("{:.3f}".format(minDCF))
+    # print("{:.2f}".format(eer))
 
 
 

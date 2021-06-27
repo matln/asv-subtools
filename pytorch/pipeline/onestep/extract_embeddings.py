@@ -74,18 +74,21 @@ try:
 
     with kaldi_io.open_or_fd(args.feats_rspecifier, "rb") as r, \
             kaldi_io.open_or_fd(args.vectors_wspecifier, 'wb') as w:
-
-        while(True):
-            key = kaldi_io.read_key(r)
-
-            if not key:
-                break
-
+        for line in r:
+            (key, rxfile) = line.decode().split(' ')
             print("Process utterance for key {0}".format(key))
-
-            feats = kaldi_io.read_mat(r)
+            feats = kaldi_io.read_mat(rxfile)
             embedding = model.extract_embedding(feats)
             kaldi_io.write_vec_flt(w, embedding.numpy(), key=key)
+
+        # while(True):
+        #     key = kaldi_io.read_key(r)
+        #     if not key:
+        #         break
+        #     print("Process utterance for key {0}".format(key))
+        #     feats = kaldi_io.read_mat(r)
+        #     embedding = model.extract_embedding(feats)
+        #     kaldi_io.write_vec_flt(w, embedding.numpy(), key=key)
 
 except BaseException as e:
     if not isinstance(e, KeyboardInterrupt):

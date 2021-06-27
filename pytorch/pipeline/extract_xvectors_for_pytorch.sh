@@ -88,38 +88,45 @@ for f in $srcdir/$model $srcdir/$nnet_config $data/feats.scp; do
 done
 
 case $split_type in
-    default)
-      "${SUBTOOLS}"/kaldi/utils/split_data.sh --per-utt $data $nj
-      sdata=$data/split${nj}utt/JOB
-      ;;
-    order)
-      "${SUBTOOLS}"/splitDataByLength.sh --vad $vad $data $nj
-      sdata=$data/split${nj}order/JOB
-      ;;
-    *)
-      echo "[exit] Do not support $split_type split-type" && exit 1
-      ;;
+  default)
+    "${SUBTOOLS}"/kaldi/utils/split_data.sh --per-utt $data $nj
+    sdata=$data/split${nj}utt/JOB
+    ;;
+  order)
+    "${SUBTOOLS}"/splitDataByLength.sh --vad $vad $data $nj
+    sdata=$data/split${nj}order/JOB
+    ;;
+  *)
+    echo "[exit] Do not support $split_type split-type" && exit 1
+    ;;
 esac
+
 
 echo "$0: extracting xvectors for $data"
 
-
 # Set up the features
-if [ "$cmn" == "true" ]; then
-  if [ "$vad" == "true" ]; then
-    feats="ark:apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window \
-           scp:${sdata}/feats.scp ark:- | select-voiced-frames ark:- scp,s,cs:${sdata}/vad.scp ark:- |"
-  else
-    feats="ark:apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window scp:${sdata}/feats.scp ark:- |"
-  fi
-else
-  if [ "$vad" == "true" ];then
-    feats="ark:select-voiced-frames scp:${sdata}/feats.scp scp,s,cs:${sdata}/vad.scp ark:- |"
-  else
-    feats="ark:copy-feats scp:${sdata}/feats.scp ark:- |"
-  fi
-fi
-  output="ark:| copy-vector ark:- ark,scp:$dir/xvector.JOB.ark,$dir/xvector.JOB.scp"
+# if [ "$cmn" == "true" ]; then
+#   if [ "$vad" == "true" ]; then
+#     feats="ark:apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window \
+#            scp:${sdata}/feats.scp ark:- | select-voiced-frames ark:- scp,s,cs:${sdata}/vad.scp ark:- |"
+#     # feats="ark:apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window \
+#     #        scp:${sdata}/feats.scp ark:- | select-voiced-frames ark:- scp,s,cs:${sdata}/vad.scp ark:- | \
+#     #        copy-feats --compress=false ark:- ark,scp:$dir/feats.JOB.ark,$dir/feats.JOB.scp |"
+#   else
+#     feats="ark:apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window scp:${sdata}/feats.scp ark:- |"
+#     # feats="ark:apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window scp:${sdata}/feats.scp ark:- |
+#     #        copy-feats --compress=false ark:- ark,scp:$dir/feats.JOB.ark,$dir/feats.JOB.scp |"
+#   fi
+# else
+#   if [ "$vad" == "true" ];then
+#     feats="ark:select-voiced-frames scp:${sdata}/feats.scp scp,s,cs:${sdata}/vad.scp ark:- |"
+#   else
+#     feats="ark:copy-feats scp:${sdata}/feats.scp ark:- |"
+#   fi
+# fi
+
+feats="scp:${sdata}/feats.scp"
+output="ark:| copy-vector ark:- ark,scp:$dir/xvector.JOB.ark,$dir/xvector.JOB.scp"
 
 if [ $stage -le 1 ]; then
   echo "$0: extracting xvectors from pytorch nnet"
@@ -171,6 +178,8 @@ fi
 if [ $stage -le 2 ]; then
   echo "$0: combining xvectors across jobs"
   for j in $(seq $nj); do cat $dir/xvector.$j.scp; done >$dir/xvector.scp || exit 1;
+  # echo "$0: combining feats across jobs"
+  # for j in $(seq $nj); do cat $dir/feats.$j.scp; done >$dir/feats.scp || exit 1;
 fi
 
 echo "Embeddings of [ $data ] has been extracted to [ $dir ] done."

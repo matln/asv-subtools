@@ -52,6 +52,8 @@ function findoutfile(){
   local outfile=$1
 	existed_outfile=$(cat "$2")
 	
+  # uniq -u: 只输出单独的列，也就是没有重复的列
+  # 如果outfile已经存在，则num=0；否则等于1
 	num=$(echo -e "$existed_outfile\n$existed_outfile\n$outfile" | sort | uniq -u | wc -l )
 	echo "$num"
 	return 0
@@ -150,8 +152,10 @@ function process(){
 			tmp=$(get_params $the_process $conf $current_file)
 			current_file=$(echo "$tmp" | awk '{print $1}')
 			params=$(echo "$tmp" | awk '{$1="";print $0}')
-			exist=$(findoutfile "$dir/$current_file" "$processed")  # 1 -> do not exist  3 - > has been processed
+			exist=$(findoutfile "$dir/$current_file" "$processed")  # 1 -> do not exist  0 - > has been processed
 
+      # -f "$dir/$current_file" 为true有可能是上次计算得分过程中产生的
+      # exist==1；当前the_process还没有实施过
 			[[ ! -f "$dir/$current_file" || "$process_force_clear" == "true" ]] && [[ "$exist" == 1 ]] && \
         $the_process $params
 			echo "$dir/$current_file" >> "$processed"

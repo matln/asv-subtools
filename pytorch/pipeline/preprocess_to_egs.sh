@@ -40,8 +40,8 @@ expected_files="utt2spk,spk2utt,feats.scp,utt2num_frames"
 # . subtools/path.sh
 . "${SUBTOOLS}"/parse_options.sh
 
-if [[ $# != 2 && $# != 3 ]]; then
-  echo "[exit] Num of parameters is not equal to 2 or 3"
+if [[ $# != 1 && $# != 2 && $# != 3 ]]; then
+  echo "[exit] Num of parameters is not equal to 1, 2 or 3"
   echo "usage:$0 <data-dir> <egs-dir>"
   exit 1
 fi
@@ -56,6 +56,7 @@ if [ -n "$valid_data" ]; then
   datasets=("$train_data" "$valid_data")
   valid_name=$(echo "$valid_data" | sed 's/\// /g' | awk '{for(i=1;i<=NF-1;i++){printf $i"-";}printf $NF}')
   names=("$train_name" "$valid_name")
+  valid_data="${valid_data}${suffix}"
 else
   datasets=("$train_data")
   names=("$train_name")
@@ -112,7 +113,7 @@ if [[ $stage -le 2 && 2 -le $endstage ]]; then
   # valid: validation
   python3 "${SUBTOOLS}"/pytorch/pipeline/onestep/get_chunk_egs.py \
     --chunk-size=$min_chunk \
-    --valid-dir="${valid_data}${suffix}" \
+    --valid-dir="${valid_data}" \
     --valid-split-from-trainset=$valid_split_from_trainset \
     --valid-num-utts=$valid_num_utts \
     --valid-split-type=$valid_split_type \

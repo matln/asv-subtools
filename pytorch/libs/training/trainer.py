@@ -11,6 +11,7 @@ import progressbar
 import pandas as pd
 import numpy as np
 import torch
+from torch.cuda.amp import autocast, GradScaler
 
 from .reporter import Reporter
 from .lr_scheduler import LRSchedulerWrapper
@@ -59,8 +60,9 @@ class _BaseTrainer():
         default_params = {"model_dir": "", "model_blueprint": "", "exist_model": "",
                           "start_epoch": 0, "epochs": 10, "use_gpu": True, "gpu_id": "",
                           "benchmark": True, "max_change": 10.0, "compute_accuracy": True,
-                          "compute_valid_accuracy": True, "compute_one_batch_valid": True,
-                          "suffix": "params", "nan_debug": False, "use_tensorboard": True}
+                          "compute_valid_accuracy": True, "compute_one_batch_valid": False,
+                          "suffix": "params", "nan_debug": False, "use_tensorboard": True,
+                          "mixed_prec": False}
 
         elements, params = package
         self.elements = utils.assign_params_dict(default_elements, elements)
@@ -75,6 +77,8 @@ class _BaseTrainer():
 
         self.elements["model_forward"] = self.elements["model"]
         self.params["start_epoch"] = max(0, self.params["start_epoch"])
+
+        if self.params["mixed_prec"] is True: self.scaler = GradScaler()
 
         self.stop_early = stop_early  # To do.
         self.training_point = (self.params["start_epoch"], 0, self.elements["data"].num_batch_train)
@@ -192,14 +196,20 @@ class SimpleTrainer(_BaseTrainer):
             inputs, targets = batch
         optimizer.zero_grad()
 
-        tmp = model_forward(inputs)
-        loss = model.get_loss(tmp, targets)
-        loss.backward()
-        loss.detach()  # For safe.
+        if self.params["mixed_prec"]:
+            with autocast():
+                loss = model.get_loss(model_forward(inputs), targets)
+            self.scaler.scale(loss).backward()
+        else:
+            loss = model.get_loss(model_forward(inputs), targets)
+            loss.backward()
 
         if self.params["max_change"] > 0:
+            if self.params["mixed_prec"]:
+                self.scaler.unscale_(optimizer)
             # Reference:https://github.com/horovod/horovod/blob/master/horovod/torch/__init__.py:420~423.
             # Synchronize the grad for grad_norm when using horovod.
+            # TODO: horovod 与 midxed_prec 之间有没有影响还没研究
             if utils.use_horovod():
                 optimizer.synchronize()
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), self.params["max_change"])
@@ -218,17 +228,27 @@ class SimpleTrainer(_BaseTrainer):
             else:
                 if self.params["nan_debug"]:
                     raise RuntimeError("[OK] There is no nan found for this debug.")
+                # TODO: horovod 与 mixed_prec
                 if utils.use_horovod():
                     with optimizer.skip_synchronize():
                         optimizer.step()
                 else:
-                    optimizer.step()
+                    if self.params["mixed_prec"]:
+                        # it skips optimizer.step() if the gradients contain infs or NaNs.
+                        self.scaler.step(optimizer)
+                        self.scaler.update()
+                    else:
+                        optimizer.step()
         else:
-            optimizer.step()
+            if self.params["mixed_prec"]:
+                self.scaler.step(optimizer)
+                self.scaler.update()
+            else:
+                optimizer.step()
 
         accuracy = model.get_accuracy(targets) if self.params["compute_accuracy"] else None
 
-        return loss.item(), accuracy
+        return loss.detach().item(), accuracy
 
     def compute_validation(self, data_loader):
         """A normal evaluation core.
@@ -362,7 +382,11 @@ class SimpleTrainer(_BaseTrainer):
                     if utils.is_main_training():
                         self.reporter.update(snapshot)
                 if utils.is_main_training():
-                    if this_epoch >= epochs - 5:
+                    if epochs >= 20:
+                        if this_epoch >= epochs - 10:
+                            print(current_lr)
+                            self.save_model()
+                    else:
                         print(current_lr)
                         self.save_model()
             if utils.is_main_training():

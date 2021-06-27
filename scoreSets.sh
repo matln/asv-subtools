@@ -62,6 +62,13 @@ default_config=false # if true, all of the data config of lda, submean and white
 
 lda=false # if false, forcely ignore lda process
 clda=10
+##################################################
+##################################################
+# "process": 进行这个操作所需要的前序操作   #
+##################################################
+##################################################
+
+# 进行lda需要进行的前序操作
 lda_process="norm-trainlda"
 # 中括号前的train表明用train set训练lda，并将训练好的lda模型应用到train set 和 dev set
 # 在config文件中 lda_data_conf 的 value 就是 trainset 的config文件
@@ -69,6 +76,7 @@ lda_data_config="trainset[trainset devset]"  # if NULL, will be set "$enrollset[
 
 # submean: substract global mean vector
 submean=false
+# 进行submean需要进行的前序操作
 submean_process="lda-getmean" # getmean means computing the global mean vector from a dataset
 # 中括号前的train表明用train set训练lda并计算trainset 的 global mean，并将训练好的lda模型应用到train set 和 dev set，然后减去 global_mean
 # 在config文件中 submean_data_conf 的 value 就是 trainset 的config文件
@@ -178,7 +186,7 @@ else
   [ "$lda_data_config" == "" ] && lda_data_config=$trainset[$trainset $enrollset $testset] && echo "[Notice] It will set the default config $trainset[$trainset $enrollset $testset] for lda, if used."
   [ "$submean_data_config" == "" ] && submean_data_config=$trainset[$trainset $enrollset $testset] && echo "[Notice] It will set the default config $trainset[$trainset $enrollset $testset] for submean, if used."
   [ "$whiten_data_config" == "" ] && whiten_data_config=$trainset[$trainset $enrollset $testset] && echo "[Notice] It will set the default config $trainset[$trainset $enrollset $testset] for whiten, if used."
-  fi
+fi
 
 [ "$lda" != "true" ] && lda_data_config=""
 [ "$submean" != "true" ] && submean_data_config=""
@@ -187,6 +195,7 @@ else
 [[ "$score" != *"plda"* && "$score" != *"aplda"* ]] && plda_trainset=""
 [[ "$score" != *"aplda"* ]] && aplda_trainset=""
 
+echo $submean_data_config
 
 ## 对 trainset enrollset testset 等初步生成 config 文件，config 文件包括：
 #   data              utt2spk, spk2utt, feat.scp 等文件的目录
