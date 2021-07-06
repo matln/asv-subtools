@@ -75,10 +75,13 @@ try:
     with kaldi_io.open_or_fd(args.feats_rspecifier, "rb") as r, \
             kaldi_io.open_or_fd(args.vectors_wspecifier, 'wb') as w:
         for line in r:
-            (key, rxfile, chunk_start, chunk_end) = line.decode().split(' ')
-            chunk=[chunk_start, chunk_end]
+            # (key, rxfile, chunk_start, chunk_end) = line.decode().split(' ')
+            # chunk=[chunk_start, chunk_end]
+            # print("Process utterance for key {0}".format(key))
+            # feats = kaldi_io.read_mat(rxfile, chunk=chunk)
+            (key, rxfile) = line.decode().split(' ')
             print("Process utterance for key {0}".format(key))
-            feats = kaldi_io.read_mat(rxfile, chunk=chunk)
+            feats = kaldi_io.read_mat(rxfile)
             embedding = model.extract_embedding(feats)
             kaldi_io.write_vec_flt(w, embedding.numpy(), key=key)
 
