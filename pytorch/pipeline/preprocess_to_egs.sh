@@ -30,6 +30,7 @@ sample_type="speaker_balance" # sequential | speaker_balance
 chunk_num=-1
 scale=1.5
 overlap=0.1
+drop_last=false
 valid_sample_type="every_utt" # With sampleSplit type [--total-spk] and sample type [every_utt], we will get enough spkers as more
                               # as possible and finally we get valid_num_utts * valid_chunk_num = 1024 * 2 = 2048 valid chunks.
 valid_chunk_num=2
@@ -121,6 +122,7 @@ if [[ $stage -le 2 && 2 -le $endstage ]]; then
     --chunk-num=$chunk_num \
     --scale=$scale \
     --overlap=$overlap \
+    --drop-last=$drop_last \
     --valid-chunk-num=$valid_chunk_num \
     --valid-sample-type=$valid_sample_type \
     --seed=$seed \

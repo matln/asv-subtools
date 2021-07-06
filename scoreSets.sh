@@ -345,7 +345,8 @@ for the_classfier in ${score//-/ }; do
   outscores="$outscores ${outname}.score"
   for the_metric in ${metric//-/ }; do
     [ "$the_metric" == "eer" ] && "${SUBTOOLS}"/score/metric/computeEER.sh --write-file "${outname}".eer $trials "${outname}".score && outsets="$outsets ${outname}.eer"
-		[ "$the_metric" == "minDCF" ] && "${SUBTOOLS}"/score/metric/getEER_minDCF.py --scores "${outname}".score --trials $trials > "${outname}".minDCF
+		[ "$the_metric" == "minDCF" ] && "${SUBTOOLS}"/score/metric/getEER_minDCF.py --scores "${outname}".score --trials $trials > "${outname}".minDCF && \
+      outsets="$outsets ${outname}.minDCF"
     [ "$the_metric" == "Cavg" ] && "${SUBTOOLS}"/score/metric/computeCavg.py -pairs $trials "${outname}".score > "${outname}".Cavg && \
       cat "${outname}".Cavg && outsets="$outsets ${outname}.Cavg"
   done
